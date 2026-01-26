@@ -1,7 +1,7 @@
 <p align="center"><img src="https://raw.githubusercontent.com/amnweb/yasb/main/src/assets/images/app_icon.png" width="180"></p>
-<h1 align="center">YASB Reborn</h1>
+<h1 align="center">YASB ORS FORK!</h1>
 <p align="center">
-  YASB (Yet Another Status Bar) is a highly configurable Windows status bar written in Python.
+  YASB (Yet Another Status Bar) is a highly configurable Windows status bar written in Python. Slightly edited to work better with Voicemeeter software!
   <br><br>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
   <a href="https://github.com/amnweb/yasb"><img src="https://img.shields.io/github/languages/top/amnweb/yasb"></a>
