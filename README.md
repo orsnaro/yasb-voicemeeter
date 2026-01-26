@@ -26,13 +26,26 @@
 - Nerd Fonts. Install [Nerd Fonts](https://www.nerdfonts.com/font-downloads) ([JetBrainsMono](https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip) recommended)
 - Windows 10 & 11
 
-### Installer
+### Using ORSNARO Fork
+####  Using Python
+- Install Python 3.14
+- Install the application and its dependencies:
+  - `pip install .` (for regular installation)
+  - `pip install -e .[dev]` (for development installation)
+- Start the application:
+  - run `python src/main.py` in your terminal (or click [yasb.vbs](src/yasb.vbs))
+  - Configure [styles.css](src/styles.css) and [config.yaml](src/config.yaml) to your liking.
+
+
+### Installing Yasb v1.8.6 original
+
+#### Installer
 - Download the latest installer from the [GitHub releases page](https://github.com/amnweb/yasb/releases/latest).
 - Run the installer and follow the on-screen instructions to complete the installation.
 
 ***
 
-### Winget
+#### Winget
 Install the YASB using Winget install
 ```powershell
 winget install --id AmN.yasb
@@ -40,7 +53,7 @@ winget install --id AmN.yasb
 
 ***
 
-### Scoop
+#### Scoop
 Install YASB using Scoop:
 ```powershell
 scoop bucket add extras
@@ -49,22 +62,13 @@ scoop install extras/yasb
 
 ***
 
-### Chocolatey
+#### Chocolatey
 Install YASB using Chocolatey:
 ```powershell
 choco install yasb
 ```
 
 ***
-
-### Using Python
-- Install Python 3.14
-- Install the application and its dependencies:
-  - `pip install .` (for regular installation)
-  - `pip install -e .[dev]` (for development installation)
-- Start the application:
-  - run `python src/main.py` in your terminal (or click [yasb.vbs](src/yasb.vbs))
-  - Configure [styles.css](src/styles.css) and [config.yaml](src/config.yaml) to your liking.
 
 
 ## Demo YASB
