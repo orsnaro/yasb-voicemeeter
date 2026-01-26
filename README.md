@@ -1,5 +1,6 @@
 <p align="center"><img src="https://raw.githubusercontent.com/amnweb/yasb/main/src/assets/images/app_icon.png" width="180"></p>
-<h1 align="center">YASB ORS FORK!</h1>
+<h1 align="center">YASB ORS FORK!<br> <h6 align="center"><i>forked from v1.8.6 x64 (stable) yasb</i></h6> </h1>
+  
 <p align="center">
   YASB (Yet Another Status Bar) is a highly configurable Windows status bar written in Python. Slightly edited to work better with Voicemeeter software!
   <br><br>
