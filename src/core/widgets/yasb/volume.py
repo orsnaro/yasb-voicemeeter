@@ -15,6 +15,7 @@ from core.utils.utilities import (
     build_widget_label,
     is_valid_qobject,
     refresh_widget_style,
+    is_process_running,
 )
 from core.utils.widgets.animation_manager import AnimationManager
 from core.utils.widgets.volume.service import AudioOutputService
@@ -22,6 +23,9 @@ from core.utils.win32.app_icons import get_process_icon
 from core.utils.win32.utilities import get_app_name_from_pid
 from core.validation.widgets.yasb.volume import VALIDATION_SCHEMA
 from core.widgets.base import BaseWidget
+
+import subprocess
+import psutil
 
 
 class VolumeWidget(BaseWidget):
@@ -44,6 +48,7 @@ class VolumeWidget(BaseWidget):
         label_shadow: dict = None,
         container_shadow: dict = None,
         progress_bar: dict = None,
+        service: AudioOutputService = None,
     ):
         super().__init__(class_name=f"volume-widget {class_name}")
         self._show_alt_label = False
@@ -88,7 +93,7 @@ class VolumeWidget(BaseWidget):
         self.callback_right = callbacks["on_right"]
         self.callback_middle = callbacks["on_middle"]
 
-        self._service = AudioOutputService()
+        self._service = self.service if not None else AudioOutputService()
         self._service.register_widget(self)
 
         self.volume = self._service.get_volume_interface()
