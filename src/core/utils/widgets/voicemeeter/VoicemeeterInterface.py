@@ -42,6 +42,12 @@ class VoicemeeterInterface:
     def SetMute(self, state: bool, _=None):
         self._set_mute_state_master_volume(does_want_to_mute=state)
 
+    def RegisterControlChangeNotify(self, callback):
+        pass
+
+    def UnregisterControlChangeNotify(self, callback):
+        pass
+
     def _increase_master_volume(self, inc_amount: int): ...
     def _decrease_master_volume(self, dec_amount: int): ...
 
