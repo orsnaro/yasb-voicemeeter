@@ -1,7 +1,7 @@
-from core.utils.widgets.volume.service import AudioOutputService
-from core.utils.utilities import is_process_running
-
 from VoicemeeterInterface import VoicemeeterInterface
+
+from core.utils.utilities import is_process_running
+from core.utils.widgets.volume.service import AudioOutputService
 
 
 # NOTE: if this inherited calss doesnt work doesn't work just try pasting AudioOutputService(QObject) as it is here
@@ -17,7 +17,7 @@ class VoicemeeterService(AudioOutputService):
             # NOTE: sometimes yasb will init before voicemeeterpro.exe does... what to do then??? other than manually refresh yasb?
             # maybe voicemeeterpro.exe init process includes a device change that triggers _on_devicce_change() in yasb
             # if so it will call get_volume_interface() just in right time lazely when its ready!
-
+            print("\n\n\n\nTESTING voicemeeterpro.exe running!\n\n\n\n\n")
             try:
                 self._volume_interface = VoicemeeterInterface
             except:

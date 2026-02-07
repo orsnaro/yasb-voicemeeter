@@ -64,6 +64,7 @@ class VolumeWidget(BaseWidget):
         self._progress_bar = progress_bar
         self._icon_cache = {}
         self._dpi = 1.0
+        self.__service = service
 
         self.progress_widget = build_progress_widget(self, self._progress_bar)
 
@@ -89,7 +90,7 @@ class VolumeWidget(BaseWidget):
         self.callback_right = callbacks["on_right"]
         self.callback_middle = callbacks["on_middle"]
 
-        self._service = self.service if not None else AudioOutputService()
+        self._service = self.__service if (self.__service != None) else AudioOutputService()
         self._service.register_widget(self)
 
         self.volume = self._service.get_volume_interface()
