@@ -7,7 +7,7 @@ DEFAULTS = {
     "synced_outputs_count": 2,
     "mute_text": "mute",
     "tooltip": True,
-    "scroll_step": 2,
+    "scroll_step": 5,
     "slider_beep": True,
     "volume_icons": [
         "\ueee8",  # Icon for muted
@@ -41,6 +41,9 @@ VALIDATION_SCHEMA = {
     "label": {"type": "string", "default": DEFAULTS["label"]},
     "label_alt": {"type": "string", "default": DEFAULTS["label_alt"]},
     "class_name": {"type": "string", "required": False, "default": DEFAULTS["class_name"]},
+    "vmcli_exe_path": {"type": "string", "required": True, "default": DEFAULTS["class_name"]},
+    "main_output_bus": {"type": "integer", "required": True, "default": DEFAULTS["main_output_bus"]},
+    "synced_outputs_count": {"type": "integer", "required": True, "default": DEFAULTS["synced_outputs_count"]},
     "mute_text": {"type": "string", "required": False, "default": DEFAULTS["mute_text"]},
     "tooltip": {"type": "boolean", "required": False, "default": DEFAULTS["tooltip"]},
     "scroll_step": {

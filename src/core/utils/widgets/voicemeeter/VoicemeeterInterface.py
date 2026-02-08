@@ -1,6 +1,7 @@
 import subprocess
+import threading
 
-from core.config import get_config
+import voicemeeterlib
 
 
 class VoicemeeterInterface:
@@ -21,10 +22,26 @@ class VoicemeeterInterface:
     voicemeeter output sliders has total of 72 steps -60:0% ->  12:100% (gain is in dB)
     """
 
-    def __init__(self):
-        self.synced_outputs_count = int(get_config().get("synced_outputs_count"))
-        self.main_output_bus = int(get_config().get("main_output_bus"))
+    # vm_direct = voicemeeterlib.api("banana")
+
+    def __init__(
+        self,
+        vmcli_exe_path: str,
+        main_output_bus: str,
+        synced_outputs_count: str,
+        vm_direct: voicemeeterlib.remote = None,
+    ):
+        self.synced_outputs_count = synced_outputs_count
+        self.main_output_bus = main_output_bus
+        self.vmcli_exe_path = vmcli_exe_path
+        self.vm_direct = vm_direct
+        # threading.Thread(target=self._level_all_to_main, daemon=True).start()
+        # slower
         self._level_all_to_main()
+
+    def __del__(self):
+        ...
+        # self.vm_direct.logout()
 
     def GetMasterVolumeLevelScalar(self) -> float:
         level_dB = self._get_master_volume()
@@ -67,39 +84,117 @@ class VoicemeeterInterface:
         return is_master_muted
 
     def _set_mute_state_master_volume(self, does_want_to_mute: bool):
-        for i in range(self.synced_outputs_count):
-            self._set_mute_state_volume(bus=i, does_want_to_mute=does_want_to_mute)
+        if self.vm_direct == None:
+            cmd = ""
+            for i in range(self.synced_outputs_count):
+                cmd += f"Bus[{i}].Mute={int(does_want_to_mute)} "
+            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
+        else:
+            cmd_bulk = {}
+            for i in range(self.synced_outputs_count):
+                cmd_bulk[f"bus-{i}"] = {"mute": does_want_to_mute}
+            threading.Thread(target=self.vm_direct.apply, args=(cmd_bulk,), daemon=True).start()
+
+        # slower
+        # if self.vm_direct == None:
+        #     for i in range(self.synced_outputs_count):
+        #         self._set_mute_state_volume(bus=i, does_want_to_mute=does_want_to_mute)
+        # else :
+        #     for i in range(self.synced_outputs_count):
+        #        self.vm_direct.bus[i].mute = does_want_to_mute
 
     def _get_master_volume(self) -> int:
         volume_dB = self._get_volume(bus=int(self.main_output_bus))
         return volume_dB
 
     def _set_master_volume(self, volume: int):
-        for i in range(self.synced_outputs_count):
-            self._set_volume(bus=i, volume=volume)
+        if self.vm_direct == None:
+            cmd = ""
+            for i in range(self.synced_outputs_count):
+                cmd += f"Bus[{i}].Gain={volume} "
+            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
+        else:
+            cmd_bulk = {}
+            for i in range(self.synced_outputs_count):
+                cmd_bulk[f"bus-{i}"] = {"gain": volume}
+            threading.Thread(target=self.vm_direct.apply, args=(cmd_bulk,), daemon=True).start()
+
+        # slower
+        # if self.vm_direct == None :
+        #     for i in range(self.synced_outputs_count):
+        #         self._set_volume(bus=i, volume=volume)
+        # else :
+        #     for i in range(self.synced_outputs_count):
+        #         self.vm_direct.bus[i].gain = volume
 
     def _get_volume(self, bus: int) -> int:
-        volume_dB = self._vmcli_cmd(f"Strip[{bus}].Gain")
-        return volume_dB
+        if self.vm_direct == None:
+            volume_dB: subprocess.CompletedProcess = self._vmcli_cmd(f"Bus[{bus}].Gain")
+            # volume_dB = volume_dB.stdout.split("=")[1].replace("\n", "")  # e.g.(o/p before split 'Bus[1].Gain=0.000')
+            volume_dB = volume_dB.stdout[12:16]  # e.g.(o/p before slice 'Bus[1].Gain=0.000')
+        else:
+            volume_dB = self.vm_direct.bus[bus].gain
+        return int(float(volume_dB))
 
     def _set_volume(self, bus: int, volume: int):
-        self._vmcli_cmd(f"Strip[{bus}].Gain={volume}")
+        if self.vm_direct == None:
+            cmd = f"Bus[{bus}].Gain={volume}"
+            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
+        else:
+            self.vm_direct.bus[bus].gain = volume
+
+        # slower?
+        # self._vmcli_cmd(cmd)
 
     def _increase_volume(self, bus: int, inc_amount: int):
-        self._vmcli_cmd(f"Strip[{bus}].Gain+={inc_amount}")
+        if self.vm_direct == None:
+            cmd = f"Bus[{bus}].Gain+={inc_amount}"
+            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
+        else:
+            self.vm_direct.bus[bus].gain += inc_amount
+
+        # slower?
+        # self._vmcli_cmd(cmd)
 
     def _decrease_volume(self, bus: int, dec_amount: int):
-        self._vmcli_cmd(f"Strip[{bus}].Gain-={dec_amount}")
+        if self.vm_direct == None:
+            cmd = f"Bus[{bus}].Gain-={dec_amount}"
+            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
+        else:
+            self.vm_direct.bus[bus].gain -= dec_amount
+
+        # slower?
+        # self._vmcli_cmd(cmd)
 
     def _toggle_mute_volume(self, bus: int):
-        self._vmcli_cmd(f"!Strip[{bus}].Mute")
+        if self.vm_direct == None:
+            cmd = f"!Bus[{bus}].Mute"
+            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
+        else:
+            self.vm_direct.bus[bus].mute = not self.vm_direct.bus[bus].mute
+
+        # slower?
+        # self._vmcli_cmd(cmd)
 
     def _get_mute_state_volume(self, bus: int) -> int:
-        state = self._vmcli_cmd(f"Strip[{bus}].Mute")
-        return state
+        if self.vm_direct == None:
+            state: subprocess.CompletedProcess = self._vmcli_cmd(f"Bus[{bus}].Mute")
+            # state = state.stdout.split("=")[1].replace("\n", "")  # e.g.(o/p before split 'Bus[1].Gain=0.000')
+            state = state.stdout[12:16]  # e.g.(o/p before slice 'Bus[1].Gain=-60.000')
+        else:
+            state = self.vm_direct.bus[bus].mute
+
+        return int(float(state))
 
     def _set_mute_state_volume(self, bus: int, does_want_to_mute: bool):
-        self._vmcli_cmd(f"Strip[{bus}].Mute={int(does_want_to_mute)}")
+        if self.vm_direct == None:
+            cmd = f"Bus[{bus}].Mute={int(does_want_to_mute)}"
+            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
+        else:
+            self.vm_direct.bus[bus].mute = does_want_to_mute
+
+        # slower?
+        # self._vmcli_cmd(cmd)
 
     def _level_all_to_main(self):
         main_output_bus = self.main_output_bus
@@ -108,7 +203,7 @@ class VoicemeeterInterface:
         for i in range(int(self.synced_outputs_count)):
             self._set_volume(bus=i, volume=volume_dB)
 
-    def _converte_to_voicemeter_scale(level: float) -> int:
+    def _converte_to_voicemeter_scale(self, level: float) -> int:
         # NOTE: volume comes in range from 0.0 to 1.0
         # search linear transformation
 
@@ -119,26 +214,21 @@ class VoicemeeterInterface:
 
         return converted_level
 
-    def _converte_to_normal_scale(level: int) -> float:
+    def _converte_to_normal_scale(self, level: int) -> float:
         # NOTE: volume comes in range from 0.0 to 1.0
         # search linear transformation
 
         shift_from_zero = 60.0  # voicemeeter range -60 to 12
         vsteps = 72.0
-
         converted_level = (float(level) + shift_from_zero) / vsteps
 
         return converted_level
 
     def _vmcli_cmd(self, command: str, **kwargs):
-        vmcli_exe_path = get_config().get("vmcli_exe_path")
-        # TESTING
-        print("TESTING:" + vmcli_exe_path)
-        # TESTING
-
+        _vmcli_exe_path = self.vmcli_exe_path
         val = None
         try:
-            val = subprocess.run(vmcli_exe_path + " " + command)
+            val = subprocess.run(_vmcli_exe_path + " " + command, capture_output=True, text=True, close_fds=False)
         except:
             pass
 

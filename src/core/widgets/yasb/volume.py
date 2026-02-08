@@ -31,7 +31,6 @@ class VolumeWidget(BaseWidget):
         self,
         label: str,
         label_alt: str,
-        class_name: str,
         mute_text: str,
         tooltip: bool,
         scroll_step: int,
@@ -41,12 +40,14 @@ class VolumeWidget(BaseWidget):
         animation: dict[str, str],
         container_padding: dict[str, int],
         callbacks: dict[str, str],
+        class_name: str = None,
         label_shadow: dict = None,
         container_shadow: dict = None,
         progress_bar: dict = None,
         service: AudioOutputService = None,
     ):
-        super().__init__(class_name=f"volume-widget {class_name}")
+        self._class_name = f"volume-widget {class_name}" if class_name == None else class_name
+        super().__init__(class_name=f"{self._class_name}")
         self._show_alt_label = False
         self._label_content = label
         self._label_alt_content = label_alt
