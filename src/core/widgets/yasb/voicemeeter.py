@@ -1,4 +1,5 @@
 import ctypes
+import inspect
 import logging
 import re
 
@@ -7,7 +8,6 @@ from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRect, Qt
 from PyQt6.QtGui import QImage, QPixmap, QWheelEvent
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout, QWidget
 
-from core.config import get_config
 from core.utils.tooltip import CustomToolTip, set_tooltip
 from core.utils.utilities import (
     PopupWidget,
@@ -518,19 +518,19 @@ class VoicemeeterWidget(BaseWidget):
 
                 # Connect to change app volume
                 app_slider.valueChanged.connect(
-                    lambda value,
-                    vol_interface=session_info["volume_interface"],
-                    slider=app_slider: self._set_app_volume(vol_interface, value, slider)
+                    lambda value, vol_interface=session_info["volume_interface"], slider=app_slider: (
+                        self._set_app_volume(vol_interface, value, slider)
+                    )
                 )
                 # Connect slider release to hide tooltip
                 app_slider.sliderReleased.connect(self._on_slider_released)
 
                 if self._audio_menu["show_app_icons"]:
                     # Make icon frame clickable to toggle mute
-                    icon_frame.mousePressEvent = lambda event, vol_interface=session_info[
-                        "volume_interface"
-                    ], icon=icon_label, slider=app_slider, pid=session_info["pid"]: self._toggle_app_mute(
-                        vol_interface, icon, slider, pid
+                    icon_frame.mousePressEvent = (
+                        lambda event, vol_interface=session_info["volume_interface"], icon=icon_label, slider=app_slider, pid=session_info["pid"]: (
+                            self._toggle_app_mute(vol_interface, icon, slider, pid)
+                        )
                     )
 
                 slider_layout.addWidget(app_slider)
@@ -705,73 +705,3 @@ class VoicemeeterWidget(BaseWidget):
             self._update_label()
         except Exception as e:
             logging.error(f"Failed to toggle mute: {e}")
-
-
-# class VoicemeeterWidget(VolumeWidget):
-#     validation_schema = VALIDATION_SCHEMA
-
-#     def __init__(
-#         self,
-#         label: str,
-#         label_alt: str,
-#         vmcli_exe_path: str,
-#         main_output_bus: str,
-#         synced_outputs_count: str,
-#         mute_text: str,
-#         tooltip: bool,
-#         scroll_step: int,
-#         slider_beep: bool,
-#         volume_icons: list[str],
-#         audio_menu: dict[str, str],
-#         animation: dict[str, str],
-#         container_padding: dict[str, int],
-#         callbacks: dict[str, str],
-#         class_name: str = None,
-#         label_shadow: dict = None,
-#         container_shadow: dict = None,
-#         progress_bar: dict = None,
-#         service=None,
-#     ):
-#         self.vmcli_exe_path = get_config().get("vmcli_exe_path", None)
-#         # self.main_output_bus = int(get_config().get("main_output_bus"))
-#         # self.synced_outputs_count = int(get_config().get("synced_outputs_count"))
-#         print(f"TESTING: vmcli_exe_path: {self.vmcli_exe_path}")
-
-#         self.vm_service = VoicemeeterService(vmcli_exe_path, main_output_bus, synced_outputs_count)
-#         super().__init__(
-#             label=None,
-#             label_alt=None,
-#             mute_text=None,
-#             tooltip=None,
-#             scroll_step=2,
-#             slider_beep=None,
-#             volume_icons=None,
-#             audio_menu=None,
-#             animation=None,
-#             container_padding=None,
-#             callbacks=None,
-#             class_name="voicemeeter-widget",
-#             label_shadow=None,
-#             container_shadow=None,
-#             progress_bar=None,
-#             service=self.vm_service,
-#         )
-
-#     def _reinitialize_audio(self):  # OVERRIDE
-#         """Update volume interface reference after device change."""
-#         # Service already reinitialized, just update our reference
-#         self.volume = self._service.get_volume_interface()
-
-#         # Close dialog if open (device change means menu data is stale)
-#         if hasattr(self, "dialog") and is_valid_qobject(self.dialog):
-#             self.dialog.hide()
-#             # Only reopen menu if we still have a valid device and speakers available
-#             if self.volume is not None:
-#                 try:
-#                     speakers = self._service.get_speakers()
-#                     if speakers:
-#                         self.show_volume_menu()
-#                 except Exception as e:
-#                     logging.debug(f"Cannot show volume menu after device change: {e}")
-
-#         self._update_label()

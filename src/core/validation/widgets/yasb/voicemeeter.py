@@ -7,7 +7,7 @@ DEFAULTS = {
     "synced_outputs_count": 2,
     "mute_text": "mute",
     "tooltip": True,
-    "scroll_step": 5,
+    "scroll_step": 2,
     "slider_beep": True,
     "volume_icons": [
         "\ueee8",  # Icon for muted
