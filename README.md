@@ -36,6 +36,12 @@
   - run `python src/main.py` in your terminal (or click [yasb.vbs](src/yasb.vbs))
   - Configure [styles.css](src/styles.css) and [config.yaml](src/config.yaml) to your liking.
 
+#### Autostart ORSNARO Fork hiddedn with no console
+- copy `src/main.py` to `src/main.pyw`
+- run `pythonw.exe src/main.pyw` to run yasb-voicemeeter with no console
+- use windows task scheduler to add new task with action `pythonw.exe src/main.pyw`
+and trigger at log on (run with highest privilages)(dont check the run at log on with any user option)
+- EXTRA: if used with glazeWM edit its config startup commands option to `shell-exec path\to\pythonw.exe path\to\src\main.pyw`
 
 ### Installing Yasb v1.8.6 original
 
