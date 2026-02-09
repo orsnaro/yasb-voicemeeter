@@ -1,5 +1,4 @@
 import ctypes
-import inspect
 import logging
 import re
 
@@ -166,6 +165,7 @@ class VoicemeeterWidget(BaseWidget):
         if self.volume is not None:
             try:
                 self.volume.SetMasterVolumeLevelScalar(value / 100, None)
+                self._update_label()
                 # Show tooltip while actively dragging
                 if hasattr(self, "volume_slider"):
                     self._show_slider_tooltip(self.volume_slider, value)
@@ -272,7 +272,7 @@ class VoicemeeterWidget(BaseWidget):
                 current_volume = round(self.volume.GetMasterVolumeLevelScalar() * 100)
                 self.volume_slider.setValue(current_volume)
             except:
-                pass
+                logging.debug(f"Failed to update slider value to {current_volume}")
 
     def _apply_slider_scroll_step(self, slider: QSlider):
         """Apply scroll_step to slider wheel/keyboard increments."""
@@ -589,6 +589,7 @@ class VoicemeeterWidget(BaseWidget):
                 level_volume = (
                     self._mute_text if mute_status == 1 else f"{round(self.volume.GetMasterVolumeLevelScalar() * 100)}%"
                 )
+                logging.warning(f"WARN {round(self.volume.GetMasterVolumeLevelScalar() * 100)}")
 
             except Exception as e:
                 logging.error(f"Failed to get volume info: {e}")

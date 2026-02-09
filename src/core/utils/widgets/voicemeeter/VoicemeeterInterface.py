@@ -48,7 +48,7 @@ class VoicemeeterInterface:
         try:
             if vm_direct == None:
                 logging.info(f"called {inspect.stack()[0][3]}(): ")
-                vm_direct = voicemeeterlib.api("banana")  # software has 3 versions: normal,banana,potato LOL
+                vm_direct = voicemeeterlib.api("banana", sync=True)  # software has 3 versions: normal,banana,potato LOL
                 vm_direct.event.ldirty = True  # get updates from voicemeeter for audio levels changes
                 vm_direct.event.pdirty = True  # get updates from voicemeeter for parameter values changes
                 vm_direct.login()
@@ -59,7 +59,9 @@ class VoicemeeterInterface:
 
     def GetMasterVolumeLevelScalar(self) -> float:
         level_dB = self._get_master_volume()
+        logging.warning(f"WARN get level_dB {level_dB}")
         level_scaled = self._converte_to_normal_scale(level_dB)
+        logging.warning(f"WARN get level_scaled {level_scaled}")
         return level_scaled
 
     def SetMasterVolumeLevelScalar(self, level: float, _=None):
@@ -139,13 +141,14 @@ class VoicemeeterInterface:
             volume_dB: subprocess.CompletedProcess = self._vmcli_cmd(f"Bus[{bus}].Gain")
             # volume_dB = volume_dB.stdout.split("=")[1].replace("\n", "")  # e.g.(o/p before split 'Bus[1].Gain=0.000')
             volume_dB = volume_dB.stdout[12:16]  # e.g.(o/p before slice 'Bus[1].Gain=0.000')
+            volume_dB = int(float(volume_dB))
         else:
             try:
                 volume_dB = self.vm_direct.bus[bus].gain
             except Exception as e:
                 logging.error(f"{inspect.stack()[0][3]}(): failed to get bus{bus} volume! err details: {e}")
 
-        return int(float(volume_dB))
+        return volume_dB
 
     def _set_volume(self, bus: int, volume: int):
         if self.vm_direct == None:
@@ -204,14 +207,13 @@ class VoicemeeterInterface:
             state: subprocess.CompletedProcess = self._vmcli_cmd(f"Bus[{bus}].Mute")
             # state = state.stdout.split("=")[1].replace("\n", "")  # e.g.(o/p before split 'Bus[1].Gain=0.000')
             state = state.stdout[12:16]  # e.g.(o/p before slice 'Bus[1].Gain=-60.000')
+            state = int(float(state))
         else:
             try:
                 state = self.vm_direct.bus[bus].mute
             except Exception as e:
                 logging.error(f"{inspect.stack()[0][3]}(): failed to get bus{bus} mute state! err details: {e}")
-        logging.warning(f"{inspect.stack()[0][3]}(): is muted? {state}")
-        logging.warning(f"{inspect.stack()[0][3]}(): is muted? int float {int(float(state))}")
-        return int(float(state))
+        return state
 
     def _set_mute_state_volume(self, bus: int, does_want_to_mute: bool):
         if self.vm_direct == None:
