@@ -11,6 +11,7 @@ __pycache__/
 # Ignore virtual environment directories
 .venv/
 venv/
+artifacts/
 # Application specific
 src/yasb.log
 dist/
@@ -19,3 +20,4 @@ build/
 *.tmp
 *.temp
 .is_autoVenv  
+hidden_runner.vbs
