@@ -21,4 +21,5 @@ build/
 *.temp
 .is_autoVenv  
 hidden_runner.vbs
-src/main.pyw
+src/main.pyw.is_autoVenv  
+.is_autoVenv  
