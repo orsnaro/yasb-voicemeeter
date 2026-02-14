@@ -7,8 +7,8 @@ import voicemeeterlib
 
 from core.utils.widgets.microphone.service import _SharedVolumeCallback
 
-global vm_direct
-vm_direct = None
+global vm_direct_global
+vm_direct_global = None
 
 
 class VoicemeeterInterface:
@@ -29,29 +29,66 @@ class VoicemeeterInterface:
     voicemeeter output sliders has total of 72 steps -60:0% ->  12:100% (gain is in dB)
     """
 
+    _lock = threading.Lock()
+    watcher_loop_th: threading.Thread = None
+
     def __init__(
         self,
         vmcli_exe_path: str,
         main_output_bus: str,
         synced_outputs_count: str,
     ):
+        self.sync_vm_widgets = False
         self.synced_outputs_count = synced_outputs_count
         self.main_output_bus = main_output_bus
         self.vmcli_exe_path = vmcli_exe_path
-        VoicemeeterInterface.start_vm_direct_if_not_started()
-        self.vm_direct = vm_direct
+        self.__class__._start_vm_direct_if_not_started()
+        # VoicemeeterInterface._start_vm_direct_if_not_started() #same as above line
+        self.vm_direct = vm_direct_global
+        self.vm_direct.observer.add(self)
+        with self.__class__._lock:
+            if self.__class__.watcher_loop_th is not None and not self.__class__.watcher_loop_th.is_alive():
+                self.__class__.watcher_loop_th = threading.Thread(target=self.__class__._watcher_loop, daemon=True)
+                self.__class__.watcher_loop_th.start()
         self._level_all_to_main()
 
-    @staticmethod
-    def start_vm_direct_if_not_started():
-        global vm_direct
+    @classmethod
+    def on_update(cls, new_volume=None, new_mute=None, event_context=None, channels=None, channel_volumes=None):
+        # alias for on_notify() in _SharedVolumeCallback cuz voicemeeter api looks for on_update() to call
+        pass
+
+    @classmethod
+    def _watcher_loop(cls):
         try:
-            if vm_direct == None:
-                logging.info(f"called {inspect.stack()[0][3]}(): ")
-                vm_direct = voicemeeterlib.api("banana", sync=True)  # software has 3 versions: normal,banana,potato LOL
-                vm_direct.event.ldirty = True  # get updates from voicemeeter for audio levels changes
-                vm_direct.event.pdirty = True  # get updates from voicemeeter for parameter values changes
-                vm_direct.login()
+            global vm_direct_global
+            vm = vm_direct_global
+            while True:
+                if vm.pdirty() or vm.ldirty() or vm.mdirty():
+                    cls.on_update(None, None, None, None, None)
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): issue while starting Voicemeeter watcher_loop Details: {e}")
+
+    @classmethod
+    def _start_vm_direct_if_not_started(cls):
+        global vm_direct_global
+        try:
+            if vm_direct_global is None:
+                with cls._lock:
+                    if vm_direct_global is None:
+                        logging.info(
+                            f"{inspect.stack()[0][3]}(): was called!  id(vm_direct_global) = {id(vm_direct_global)}"
+                        )
+                        # software has 3 versions: normal,banana,potato LOL
+                        vm_direct_global = voicemeeterlib.api(
+                            "banana",
+                            sync=True,
+                            subs={"ldirty": True, "pdirty": True, "mdirty": True},
+                        )
+                        vm_direct_global.event.ldirty = True  # get updates from voicemeeter for audio levels changes
+                        vm_direct_global.event.pdirty = True  # get updates from voicemeeter for params values changes
+                        vm_direct_global.event.mdirty = True  # get updates from voicemeeter for macro values changes
+
+                        vm_direct_global.login()
         except Exception as e:
             logging.error(
                 f"{inspect.stack()[0][3]}(): Failed to init voicemeeter direct communnication obj. Details: {e}"
@@ -59,12 +96,12 @@ class VoicemeeterInterface:
 
     def GetMasterVolumeLevelScalar(self) -> float:
         level_dB = self._get_master_volume()
-        logging.warning(f"WARN get level_dB {level_dB}")
         level_scaled = self._converte_to_normal_scale(level_dB)
-        logging.warning(f"WARN get level_scaled {level_scaled}")
         return level_scaled
 
     def SetMasterVolumeLevelScalar(self, level: float, _=None):
+        if self.sync_vm_widgets:
+            self.__class__.on_update(None, None, None, None, None)  # updates all other widges but a bit laggy
         level_dB = self._converte_to_voicemeter_scale(level)
         self._set_master_volume(level_dB)
 
@@ -73,13 +110,21 @@ class VoicemeeterInterface:
         return is_muted
 
     def SetMute(self, state: bool, _=None):
+        if self.sync_vm_widgets:
+            self.__class__.on_update(None, None, None, None, None)  # updates all other widges but a bit laggy
         self._set_mute_state_master_volume(does_want_to_mute=state)
 
     def RegisterControlChangeNotify(self, callback: _SharedVolumeCallback):
-        callback.on_notify()
+        logging.debug(f"{inspect.stack()[0][3]}(): registiring!")
+        # NOTE: will need this cuz
+        # keyboard macros that changes gain/mute in voicemeeter is not reflected to voicemeeter widget slider or label
+        self.__class__.on_update = callback.on_notify  # voicemeeter api searched for on_update() to call on any changes
 
     def UnregisterControlChangeNotify(self, callback):
-        pass
+        logging.debug(f"{inspect.stack()[0][3]}(): UN-registiring!")
+        # NOTE: will need this cuz
+        # keyboard macros that changes gain/mute in voicemeeter is not reflected to voicemeeter widget slider or label
+        self.__class__.on_update = None
 
     def _increase_master_volume(self, inc_amount: int): ...
     def _decrease_master_volume(self, dec_amount: int): ...
