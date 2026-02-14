@@ -33,6 +33,7 @@ class VoicemeeterService(AudioOutputService):
                     self._cached_speakers = speakers
                     if speakers or self._volume_interface is None:
                         self._volume_interface = self.get_volume_interface()
+                        logging.info(f"{inspect.stack()[0][3]}(): initing audio with voicemeeterInterface!")
 
                 with self._cache_lock:
                     if self._cached_devices is None:

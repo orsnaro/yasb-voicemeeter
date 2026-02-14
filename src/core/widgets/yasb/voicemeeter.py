@@ -589,7 +589,6 @@ class VoicemeeterWidget(BaseWidget):
                 level_volume = (
                     self._mute_text if mute_status == 1 else f"{round(self.volume.GetMasterVolumeLevelScalar() * 100)}%"
                 )
-                logging.warning(f"WARN {round(self.volume.GetMasterVolumeLevelScalar() * 100)}")
 
             except Exception as e:
                 logging.error(f"Failed to get volume info: {e}")
