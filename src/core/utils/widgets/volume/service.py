@@ -23,7 +23,7 @@ class AudioOutputService(QObject):
     device_change_requested = pyqtSignal()
     volume_change_requested = pyqtSignal()
 
-    def __new__(cls, aud_proc_exe, aud_buses_count, synced_buses_count):
+    def __new__(cls, **kwargs):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False

@@ -1,4 +1,5 @@
 import ctypes
+import inspect
 import logging
 import re
 
@@ -49,8 +50,12 @@ class VoicemeeterWidget(BaseWidget):
         container_shadow: dict = None,
         progress_bar: dict = None,
     ):
-        self._vm_service = VoicemeeterService(vmcli_exe_path, main_output_bus, synced_outputs_count)
-        self._class_name = f"voicemeeter-widget {class_name}" if class_name == None else class_name
+        self._vm_service = VoicemeeterService(
+            vmcli_exe_path=vmcli_exe_path,  # backward compatibility
+            main_output_bus=main_output_bus,
+            synced_outputs_count=synced_outputs_count,
+        )
+        self._class_name = f"voicemeeter-widget {class_name}" if class_name is None else class_name
         super().__init__(class_name=f"{self._class_name}")
         self._show_alt_label = False
         self._label_content = label

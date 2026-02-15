@@ -9,13 +9,69 @@ from core.utils.widgets.microphone.service import _SharedVolumeCallback
 
 global vm_direct_global
 vm_direct_global = None
+_lock = threading.Lock()
+
+
+class VoicemeeterApiLoginController:
+    @staticmethod
+    def Vm_api_login():
+        VoicemeeterApiLoginController._start_vm_direct_if_not_started()
+
+    @staticmethod
+    def Vm_api_logout():
+        VoicemeeterApiLoginController._stop_vm_direct_if_not_stopped()
+
+    @staticmethod
+    def _start_vm_direct_if_not_started():
+        global vm_direct_global
+        try:
+            if vm_direct_global is None:
+                with _lock:
+                    if vm_direct_global is None:
+                        logging.info(
+                            f"{inspect.stack()[0][3]}(): was called!  id(vm_direct_global)  = {id(vm_direct_global)}"
+                        )
+                        # vm software has 3 versions: basic, banana, potato LOL
+                        vm_direct_global = voicemeeterlib.api("banana", sync=True)
+                        # vm_direct_global.clear_dirty()
+                        # if not vm_direct_global.stopped:
+                        #     vm_direct_global.end_thread()
+                        # vm_direct_global.logout()
+                        vm_direct_global.login()
+                        # time.sleep(3)
+                        logging.info(f"{inspect.stack()[0][3]}(): STARTED!")
+
+        except Exception as e:
+            logging.error(
+                f"{inspect.stack()[0][3]}(): Failed to init voicemeeter direct communnicator obj. Details: {e}"
+            )
+
+    @staticmethod
+    def _stop_vm_direct_if_not_stopped():
+        global vm_direct_global
+        try:
+            if vm_direct_global is not None:
+                with _lock:
+                    if vm_direct_global is not None:
+                        logging.info(
+                            f"{inspect.stack()[0][3]}(): was called! stopping... id(vm_direct_global) = {id(vm_direct_global)}"
+                        )
+                        # software has 3 versions: normal,banana,potato LOL
+                        vm_direct_global.logout()
+                        vm_direct_global = None
+                        logging.info(f"{inspect.stack()[0][3]}(): STOPPED!")
+
+        except Exception as e:
+            logging.error(
+                f"{inspect.stack()[0][3]}(): Failed to stop voicemeeter direct communnicator obj. Details: {e}"
+            )
 
 
 class VoicemeeterInterface:
     """_summary_
-    class communicates with vmcli tool  that communicates with voicemeeter tool to control in/op sound in OS
+    class communicates with (vmcli tool or vm api directly)  that communicates with voicemeeter tool to control in/op sound in OS
 
-    ### Interface need those method names:
+    ### Interface needss to implement the following:
 
     GetMasterVolumeLevelScalar
 
@@ -25,74 +81,37 @@ class VoicemeeterInterface:
 
     SetMute
 
+    RegisterControlChangeNotify
+
+    UnRegisterControlChangeNotify
+
     ---
-    voicemeeter output sliders has total of 72 steps -60:0% ->  12:100% (gain is in dB)
+    voicemeeter output sliders has total of 72 steps -60:0% ->  12:100% (vm gain is in dB)
     """
 
-    _lock = threading.Lock()
-    watcher_loop_th: threading.Thread = None
+    _instances_count = 0
 
-    def __init__(
-        self,
-        vmcli_exe_path: str,
-        main_output_bus: str,
-        synced_outputs_count: str,
-    ):
-        self.sync_vm_widgets = False
-        self.synced_outputs_count = synced_outputs_count
-        self.main_output_bus = main_output_bus
-        self.vmcli_exe_path = vmcli_exe_path
-        self.__class__._start_vm_direct_if_not_started()
-        # VoicemeeterInterface._start_vm_direct_if_not_started() #same as above line
+    def __new__(cls, **kwargs):
+        cls._instances_count += 1
+        return super().__new__(cls)
+
+    def __init__(self, **kwargs):
+
+        logging.debug(
+            f"{self.__class__.__name__} {inspect.stack()[0][3]}(): was called!  id(VoicemeeterInterface) = {id(self)}"
+        )
+
+        self.synced_outputs_count = kwargs["synced_outputs_count"]
+        self.main_output_bus = kwargs["main_output_bus"]
+        self.vmcli_exe_path = kwargs["vmcli_exe_path"]  # backward compatibility
+
+        self._shared_volume_callback = None
+        VoicemeeterApiLoginController.Vm_api_login()
         self.vm_direct = vm_direct_global
-        self.vm_direct.observer.add(self)
-        with self.__class__._lock:
-            if self.__class__.watcher_loop_th is not None and not self.__class__.watcher_loop_th.is_alive():
-                self.__class__.watcher_loop_th = threading.Thread(target=self.__class__._watcher_loop, daemon=True)
-                self.__class__.watcher_loop_th.start()
         self._level_all_to_main()
 
-    @classmethod
-    def on_update(cls, new_volume=None, new_mute=None, event_context=None, channels=None, channel_volumes=None):
-        # alias for on_notify() in _SharedVolumeCallback cuz voicemeeter api looks for on_update() to call
-        pass
-
-    @classmethod
-    def _watcher_loop(cls):
-        try:
-            global vm_direct_global
-            vm = vm_direct_global
-            while True:
-                if vm.pdirty() or vm.ldirty() or vm.mdirty():
-                    cls.on_update(None, None, None, None, None)
-        except Exception as e:
-            logging.error(f"{inspect.stack()[0][3]}(): issue while starting Voicemeeter watcher_loop Details: {e}")
-
-    @classmethod
-    def _start_vm_direct_if_not_started(cls):
-        global vm_direct_global
-        try:
-            if vm_direct_global is None:
-                with cls._lock:
-                    if vm_direct_global is None:
-                        logging.info(
-                            f"{inspect.stack()[0][3]}(): was called!  id(vm_direct_global) = {id(vm_direct_global)}"
-                        )
-                        # software has 3 versions: normal,banana,potato LOL
-                        vm_direct_global = voicemeeterlib.api(
-                            "banana",
-                            sync=True,
-                            subs={"ldirty": True, "pdirty": True, "mdirty": True},
-                        )
-                        vm_direct_global.event.ldirty = True  # get updates from voicemeeter for audio levels changes
-                        vm_direct_global.event.pdirty = True  # get updates from voicemeeter for params values changes
-                        vm_direct_global.event.mdirty = True  # get updates from voicemeeter for macro values changes
-
-                        vm_direct_global.login()
-        except Exception as e:
-            logging.error(
-                f"{inspect.stack()[0][3]}(): Failed to init voicemeeter direct communnication obj. Details: {e}"
-            )
+    def __del__(self):
+        self.__class__._instances_count -= 1
 
     def GetMasterVolumeLevelScalar(self) -> float:
         level_dB = self._get_master_volume()
@@ -100,8 +119,6 @@ class VoicemeeterInterface:
         return level_scaled
 
     def SetMasterVolumeLevelScalar(self, level: float, _=None):
-        if self.sync_vm_widgets:
-            self.__class__.on_update(None, None, None, None, None)  # updates all other widges but a bit laggy
         level_dB = self._converte_to_voicemeter_scale(level)
         self._set_master_volume(level_dB)
 
@@ -110,30 +127,59 @@ class VoicemeeterInterface:
         return is_muted
 
     def SetMute(self, state: bool, _=None):
-        if self.sync_vm_widgets:
-            self.__class__.on_update(None, None, None, None, None)  # updates all other widges but a bit laggy
         self._set_mute_state_master_volume(does_want_to_mute=state)
 
     def RegisterControlChangeNotify(self, callback: _SharedVolumeCallback):
-        logging.debug(f"{inspect.stack()[0][3]}(): registiring!")
-        # NOTE: will need this cuz
+        logging.debug(f"{inspect.stack()[0][3]}(): Registiring! {callback.on_notify.__name__}")
+        # NOTE: will need this cuz without it
         # keyboard macros that changes gain/mute in voicemeeter is not reflected to voicemeeter widget slider or label
-        self.__class__.on_update = callback.on_notify  # voicemeeter api searched for on_update() to call on any changes
 
-    def UnregisterControlChangeNotify(self, callback):
-        logging.debug(f"{inspect.stack()[0][3]}(): UN-registiring!")
-        # NOTE: will need this cuz
+        if self.vm_direct.stopped:
+            self.vm_direct.clear_dirty()
+            self.vm_direct.init_thread()  # start vm updates watcher thread
+
+        self._shared_volume_callback = callback
+        self.vm_direct.observer.add(self)  # looks for on_update() method automatically inside passed class
+        self.vm_direct.event.add(["pdirty", "mdirty"])
+
+    def UnregisterControlChangeNotify(self, callback: _SharedVolumeCallback):
+        logging.debug(f"{inspect.stack()[0][3]}(): UN-Registiring!  {callback.on_notify.__name__}")
+        # NOTE: DONT call logout() here! this method is triggered multiple times during yasb app lifetime
+        # NOTE: will need this cuz without it
         # keyboard macros that changes gain/mute in voicemeeter is not reflected to voicemeeter widget slider or label
-        self.__class__.on_update = None
 
-    def _increase_master_volume(self, inc_amount: int): ...
-    def _decrease_master_volume(self, dec_amount: int): ...
+        if not self.vm_direct.stopped:
+            self.vm_direct.end_thread()
+
+        self.vm_direct.event.remove(["pdirty", "mdirty"])
+        self.vm_direct.observer.remove(self)
+        self._shared_volume_callback = None
+
+    def on_update(self, event):
+        try:
+            self._shared_volume_callback.on_notify(0, 0, event, 0, 0)
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): Failed to use on_notify() ! Details: {e}")
+
+    def stop_vm_api(self):  # CHECK: must be called once in entire yasb app lifetime
+        try:
+            if self.__class__._instances_count <= 1:  # only this instance
+                VoicemeeterApiLoginController.Vm_api_logout()
+            else:  # _instances_count > 1
+                raise Exception(
+                    "Can't logout or stop VM API now (there is other instances of VM interface that still alive)"
+                )
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): {e}")
+
+    def _increase_master_volume(self, inc_amount: int): ...  # nope! over-engineering
+    def _decrease_master_volume(self, dec_amount: int): ...  # nope! over-engneering
 
     def _master_volume_toggle_mute(self):
         self._toggle_mute_volume(bus=int(self.main_output_bus))
 
     def _get_mute_state_master_volume(self) -> int:
-        # if any is unmuted the master state is then unmuted
+        # if any is unmuted the master state is then -> unmuted
         is_master_muted = 1  # 1 means true
 
         for i in range(self.synced_outputs_count):
@@ -145,133 +191,73 @@ class VoicemeeterInterface:
         return is_master_muted
 
     def _set_mute_state_master_volume(self, does_want_to_mute: bool):
-        if self.vm_direct == None:
-            cmd_bulk = ""
-            for i in range(self.synced_outputs_count):
-                cmd_bulk += f"Bus[{i}].Mute={int(does_want_to_mute)} "
-            threading.Thread(target=self._vmcli_cmd, args=(cmd_bulk,), daemon=True).start()
-
-        else:
-            cmd_bulk = {}
-            for i in range(self.synced_outputs_count):
-                cmd_bulk[f"bus-{i}"] = {"mute": does_want_to_mute}
-            try:
-                # threading.Thread(target=self.vm_direct.apply, args=(cmd_bulk,), daemon=True).start()
-                self.vm_direct.apply(cmd_bulk)
-            except Exception as e:
-                logging.error(f"{inspect.stack()[0][3]}(): failed to change master mute state! err details: {e}")
+        cmd_bulk = {}
+        for i in range(self.synced_outputs_count):
+            cmd_bulk[f"bus-{i}"] = {"mute": does_want_to_mute}
+        try:
+            # threading.Thread(target=self.vm_direct.apply, args=(cmd_bulk,), daemon=True).start()
+            self.vm_direct.apply(cmd_bulk)
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): failed to change master mute state! err details: {e}")
 
     def _get_master_volume(self) -> int:
         volume_dB = self._get_volume(bus=int(self.main_output_bus))
         return volume_dB
 
     def _set_master_volume(self, volume: int):
-        if self.vm_direct == None:
-            cmd_bulk = ""
-            for i in range(self.synced_outputs_count):
-                cmd_bulk += f"Bus[{i}].Gain={volume} "
-            threading.Thread(target=self._vmcli_cmd, args=(cmd_bulk,), daemon=True).start()
-        else:
-            cmd_bulk = {}
-            for i in range(self.synced_outputs_count):
-                cmd_bulk[f"bus-{i}"] = {"gain": volume}
-            try:
-                # threading.Thread(target=self.vm_direct.apply, args=(cmd_bulk,), daemon=True).start()
-                self.vm_direct.apply(cmd_bulk)
-            except Exception as e:
-                logging.error(f"{inspect.stack()[0][3]}(): failed to get master volume! err details: {e}")
+        cmd_bulk = {}
+        for i in range(self.synced_outputs_count):
+            cmd_bulk[f"bus-{i}"] = {"gain": volume}
+        try:
+            # threading.Thread(target=self.vm_direct.apply, args=(cmd_bulk,), daemon=True).start()
+            self.vm_direct.apply(cmd_bulk)
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): failed to get master volume! err details: {e}")
 
     def _get_volume(self, bus: int) -> int:
-        if self.vm_direct == None:
-            volume_dB: subprocess.CompletedProcess = self._vmcli_cmd(f"Bus[{bus}].Gain")
-            # volume_dB = volume_dB.stdout.split("=")[1].replace("\n", "")  # e.g.(o/p before split 'Bus[1].Gain=0.000')
-            volume_dB = volume_dB.stdout[12:16]  # e.g.(o/p before slice 'Bus[1].Gain=0.000')
-            volume_dB = int(float(volume_dB))
-        else:
-            try:
-                volume_dB = self.vm_direct.bus[bus].gain
-            except Exception as e:
-                logging.error(f"{inspect.stack()[0][3]}(): failed to get bus{bus} volume! err details: {e}")
+        try:
+            volume_dB = self.vm_direct.bus[bus].gain
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): failed to get bus{bus} volume! err details: {e}")
 
         return volume_dB
 
     def _set_volume(self, bus: int, volume: int):
-        if self.vm_direct == None:
-            cmd = f"Bus[{bus}].Gain={volume}"
-            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
-        else:
-            try:
-                self.vm_direct.bus[bus].gain = volume
-            except Exception as e:
-                logging.error(f"{inspect.stack()[0][3]}(): failed to set bus{bus} volume! err details: {e}")
-
-        # slower?
-        # self._vmcli_cmd(cmd)
+        try:
+            self.vm_direct.bus[bus].gain = volume
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): failed to set bus{bus} volume! err details: {e}")
 
     def _increase_volume(self, bus: int, inc_amount: int):
-        if self.vm_direct == None:
-            cmd = f"Bus[{bus}].Gain+={inc_amount}"
-            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
-        else:
-            try:
-                self.vm_direct.bus[bus].gain += inc_amount
-            except Exception as e:
-                logging.error(f"{inspect.stack()[0][3]}(): failed to increase bus{bus} volume! err details: {e}")
-
-        # slower?
-        # self._vmcli_cmd(cmd)
+        try:
+            self.vm_direct.bus[bus].gain += inc_amount
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): failed to increase bus{bus} volume! err details: {e}")
 
     def _decrease_volume(self, bus: int, dec_amount: int):
-        if self.vm_direct == None:
-            cmd = f"Bus[{bus}].Gain-={dec_amount}"
-            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
-        else:
-            try:
-                self.vm_direct.bus[bus].gain -= dec_amount
-            except Exception as e:
-                logging.error(f"{inspect.stack()[0][3]}(): failed to decrease bus{bus} volume! err details: {e}")
-
-        # slower?
-        # self._vmcli_cmd(cmd)
+        try:
+            self.vm_direct.bus[bus].gain -= dec_amount
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): failed to decrease bus{bus} volume! err details: {e}")
 
     def _toggle_mute_volume(self, bus: int):
-        if self.vm_direct == None:
-            cmd = f"!Bus[{bus}].Mute"
-            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
-        else:
-            try:
-                self.vm_direct.bus[bus].mute = not self.vm_direct.bus[bus].mute
-            except Exception as e:
-                logging.error(f"{inspect.stack()[0][3]}(): failed to toggle bus{bus} mute state! err details: {e}")
-
-        # slower?
-        # self._vmcli_cmd(cmd)
+        try:
+            self.vm_direct.bus[bus].mute = not self.vm_direct.bus[bus].mute
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): failed to toggle bus{bus} mute state! err details: {e}")
 
     def _get_mute_state_volume(self, bus: int) -> int:
-        if self.vm_direct == None:
-            state: subprocess.CompletedProcess = self._vmcli_cmd(f"Bus[{bus}].Mute")
-            # state = state.stdout.split("=")[1].replace("\n", "")  # e.g.(o/p before split 'Bus[1].Gain=0.000')
-            state = state.stdout[12:16]  # e.g.(o/p before slice 'Bus[1].Gain=-60.000')
-            state = int(float(state))
-        else:
-            try:
-                state = self.vm_direct.bus[bus].mute
-            except Exception as e:
-                logging.error(f"{inspect.stack()[0][3]}(): failed to get bus{bus} mute state! err details: {e}")
+        try:
+            state = self.vm_direct.bus[bus].mute
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): failed to get bus{bus} mute state! err details: {e}")
         return state
 
     def _set_mute_state_volume(self, bus: int, does_want_to_mute: bool):
-        if self.vm_direct == None:
-            cmd = f"Bus[{bus}].Mute={int(does_want_to_mute)}"
-            threading.Thread(target=self._vmcli_cmd, args=(cmd,), daemon=True).start()
-        else:
-            try:
-                self.vm_direct.bus[bus].mute = does_want_to_mute
-            except Exception as e:
-                logging.error(f"{inspect.stack()[0][3]}(): failed to set bus{bus} mute state! err details: {e}")
-
-        # slower?
-        # self._vmcli_cmd(cmd)
+        try:
+            self.vm_direct.bus[bus].mute = does_want_to_mute
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}(): failed to set bus{bus} mute state! err details: {e}")
 
     def _level_all_to_main(self):
         main_output_bus = self.main_output_bus
@@ -279,6 +265,8 @@ class VoicemeeterInterface:
 
         for i in range(int(self.synced_outputs_count)):
             self._set_volume(bus=i, volume=volume_dB)
+
+        logging.debug(f"{inspect.stack()[0][3]}(): leveled all buses to main bus{self.main_output_bus} level")
 
     def _converte_to_voicemeter_scale(self, level: float) -> int:
         # NOTE: volume comes in range from 0.0 to 1.0
@@ -318,6 +306,7 @@ class VoicemeeterInterface:
 
         return converted_level
 
+    # legacy
     def _vmcli_cmd(self, command: str, **kwargs):
         _vmcli_exe_path = self.vmcli_exe_path
         val = None
