@@ -69,7 +69,7 @@ class VoicemeeterService(AudioOutputService):
         """Get volume control interface."""
 
         try:
-            if is_process_running("voicemeeterpro.exe"):
+            if not is_process_running("voicemeeterpro.exe"):
                 logging.warning(
                     "'voicemeeterpro.exe' was not running before yasb starts. This MAY cause issues specially if using legacy vmcli.exe! -> launching voicemeeter via an internal command"
                 )
