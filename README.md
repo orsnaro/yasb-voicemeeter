@@ -19,7 +19,6 @@
 </h3>
 
 ***
-
 # Installation
 
 ### Requirements
@@ -95,7 +94,7 @@ https://github.com/user-attachments/assets/aab8d8e8-248f-46a1-919c-9b0601236ac1
 
 
 ## List of currently available widgets in YASB.
-
+  ### NOTE: voicemeeter  widget is not intended to be used with volume widget (dont use both)
 - **[Active Windows Title](https://github.com/amnweb/yasb/wiki/(Widget)-Active-Windows-Title)**: Displays the title of the currently active window.
 - **[Applications](https://github.com/amnweb/yasb/wiki/(Widget)-Applications)**: Shows a list of predefined applications.
 - **[Ai Chat](https://github.com/amnweb/yasb/wiki/(Widget)-Ai-Chat)**: A chat widget that allows you to interact with AI models.
@@ -137,6 +136,7 @@ https://github.com/user-attachments/assets/aab8d8e8-248f-46a1-919c-9b0601236ac1
 - **[Update Checker](https://github.com/amnweb/yasb/wiki/(Widget)-Update-Check)**: Checks for available updates using Windows Update and Winget.
 - **[Visual Studio Code](https://github.com/amnweb/yasb/wiki/(Widget)-VSCode)**: Shows recently opened folders in Visual Studio Code.
 - **[Volume](https://github.com/amnweb/yasb/wiki/(Widget)-Volume)**: Shows and controls the system volume.
+- **Voicemeeter: TODO docs (similar to Volume widgets but enhanced with Voicemeeter app compatibility)
 - **[Wallpapers](https://github.com/amnweb/yasb/wiki/(Widget)-Wallpapers)**: Allows changing wallpapers.
 - **[Weather](https://github.com/amnweb/yasb/wiki/(Widget)-Weather)**: Displays current weather information.
 - **[WiFi](https://github.com/amnweb/yasb/wiki/(Widget)-WiFi)**: Shows the current WiFi status.
