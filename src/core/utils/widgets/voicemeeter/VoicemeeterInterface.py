@@ -90,6 +90,7 @@ class VoicemeeterInterface:
     """
 
     _instances_count = 0
+    _watched_instances_id = set()
 
     def __new__(cls, **kwargs):
         cls._instances_count += 1
@@ -139,8 +140,9 @@ class VoicemeeterInterface:
             self.vm_direct.init_thread()  # start vm updates watcher thread
 
         self._shared_volume_callback = callback
-        self.vm_direct.observer.add(self)  # looks for on_update() method automatically inside passed class
         self.vm_direct.event.add(["pdirty", "mdirty"])
+        self.vm_direct.observer.add(self)  # looks for on_update() method automatically inside passed class
+        self.__class__._watched_instances_id.add(id(self))
 
     def UnregisterControlChangeNotify(self, callback: _SharedVolumeCallback):
         logging.debug(f"{inspect.stack()[0][3]}(): UN-Registiring!  {callback.on_notify.__name__}")
@@ -152,14 +154,18 @@ class VoicemeeterInterface:
             self.vm_direct.end_thread()
 
         self.vm_direct.event.remove(["pdirty", "mdirty"])
-        self.vm_direct.observer.remove(self)
         self._shared_volume_callback = None
+
+        instance_id = id(self)
+        if instance_id in self.__class__._watched_instances_id:
+            self.vm_direct.observer.remove(self)
+            self.__class__._watched_instances_id.remove(instance_id)
 
     def on_update(self, event):
         try:
             self._shared_volume_callback.on_notify(0, 0, event, 0, 0)
         except Exception as e:
-            logging.error(f"{inspect.stack()[0][3]}(): Failed to use on_notify() ! Details: {e}")
+            logging.error(f"{inspect.stack()[0][3]}(): Failed to use on_notify() ! event {event} Details: {e}")
 
     def stop_vm_api(self):  # CHECK: must be called once in entire yasb app lifetime
         try:
