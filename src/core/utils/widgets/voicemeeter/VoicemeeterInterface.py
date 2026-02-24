@@ -33,12 +33,7 @@ class VoicemeeterApiLoginController:
                         )
                         # vm software has 3 versions: basic, banana, potato LOL
                         vm_direct_global = voicemeeterlib.api("banana", sync=True)
-                        # vm_direct_global.clear_dirty()
-                        # if not vm_direct_global.stopped:
-                        #     vm_direct_global.end_thread()
-                        # vm_direct_global.logout()
                         vm_direct_global.login()
-                        # time.sleep(3)
                         logging.info(f"{inspect.stack()[0][3]}(): STARTED!")
 
         except Exception as e:
@@ -90,10 +85,14 @@ class VoicemeeterInterface:
     """
 
     _instances_count = 0
-    _watched_instances_id = set()
+    _id_gen = 0
+    _watched_instances = {}
+    _update_threads = set()
+    _VmApiUpdatesThreadName = "VmApiUpdatesTh"
 
     def __new__(cls, **kwargs):
         cls._instances_count += 1
+        cls._id_gen += 1
         return super().__new__(cls)
 
     def __init__(self, **kwargs):
@@ -101,6 +100,7 @@ class VoicemeeterInterface:
         logging.debug(
             f"{self.__class__.__name__} {inspect.stack()[0][3]}(): was called!  id(VoicemeeterInterface) = {id(self)}"
         )
+        self.id = self.__class__._id_gen
 
         self.synced_outputs_count = kwargs["synced_outputs_count"]
         self.main_output_bus = kwargs["main_output_bus"]
@@ -135,31 +135,45 @@ class VoicemeeterInterface:
         # NOTE: will need this cuz without it
         # keyboard macros that changes gain/mute in voicemeeter is not reflected to voicemeeter widget slider or label
 
-        if self.vm_direct.stopped:
-            self.vm_direct.clear_dirty()
-            self.vm_direct.init_thread()  # start vm updates watcher thread
+        self.vm_direct.clear_dirty()
+        try:
+            if self.vm_direct.stopped:
+                update_th = threading.Thread(target=self.vm_direct.init_thread, daemon=False)
+                update_th.start()
+                self.__class__._update_threads.add(update_th)
+                # self.vm_direct.init_thread()  # start vm updates watcher thread
+
+        except Exception as e:
+            logging.error(f"{inspect.stack()[0][3]}():could not start vm api updates thread. Details: {e}")
 
         self._shared_volume_callback = callback
-        self.vm_direct.event.add(["pdirty", "mdirty"])
+        self.vm_direct.event.add(["pdirty"])
         self.vm_direct.observer.add(self)  # looks for on_update() method automatically inside passed class
-        self.__class__._watched_instances_id.add(id(self))
+        self.__class__._watched_instances[id(self)] = self
 
     def UnregisterControlChangeNotify(self, callback: _SharedVolumeCallback):
-        logging.debug(f"{inspect.stack()[0][3]}(): UN-Registiring!  {callback.on_notify.__name__}")
+        logging.debug(f"{inspect.stack()[0][3]}(): UN-Registiring!")
         # NOTE: DONT call logout() here! this method is triggered multiple times during yasb app lifetime
         # NOTE: will need this cuz without it
         # keyboard macros that changes gain/mute in voicemeeter is not reflected to voicemeeter widget slider or label
 
-        if not self.vm_direct.stopped:
-            self.vm_direct.end_thread()
+        for th in list(self.__class__._update_threads):
+            th.join()
+            self.__class__._update_threads.remove(th)
 
-        self.vm_direct.event.remove(["pdirty", "mdirty"])
+        # self.vm_direct.end_thread()
+
+        self.vm_direct.event.remove(["pdirty"])
         self._shared_volume_callback = None
 
         instance_id = id(self)
-        if instance_id in self.__class__._watched_instances_id:
+        if instance_id in self.__class__._watched_instances:
             self.vm_direct.observer.remove(self)
-            self.__class__._watched_instances_id.remove(instance_id)
+            self.__class__._watched_instances.pop(instance_id)
+        else:
+            logging.warning(
+                f"{inspect.stack()[0][3]}(): this instance id: {instance_id} is not in watched instances {self.__class__._watched_instances}"
+            )
 
     def on_update(self, event):
         try:
@@ -169,8 +183,14 @@ class VoicemeeterInterface:
 
     def stop_vm_api(self):  # CHECK: must be called once in entire yasb app lifetime
         try:
+            logging.info(f"{inspect.stack()[0][3]}(): stopping vm api...")
+            # for k, v in list(self.__class__._watched_instances.items()):
+            #     v.UnregisterControlChangeNotify(0)
+            #     self.__class__._watched_instances.pop(k)
+
             if self.__class__._instances_count <= 1:  # only this instance
                 VoicemeeterApiLoginController.Vm_api_logout()
+                self.vm_direct.end_thread()
             else:  # _instances_count > 1
                 raise Exception(
                     "Can't logout or stop VM API now (there is other instances of VM interface that still alive)"

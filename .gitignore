@@ -22,4 +22,3 @@ build/
 .is_autoVenv  
 hidden_runner.vbs
 src/main.pyw
-.is_autoVenv  
