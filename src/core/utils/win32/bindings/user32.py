@@ -23,6 +23,7 @@ from ctypes.wintypes import (
     LPCWSTR,
     LPDWORD,
     LPVOID,
+    MSG,
     RECT,
     UINT,
     WPARAM,
@@ -65,6 +66,21 @@ user32.SetWinEventHook.restype = HANDLE
 user32.UnhookWinEvent.argtypes = [HANDLE]
 user32.UnhookWinEvent.restype = BOOL
 
+user32.GetMessageW.argtypes = [POINTER(MSG), HWND, UINT, UINT]
+user32.GetMessageW.restype = INT
+
+user32.PeekMessageW.argtypes = [POINTER(MSG), HWND, UINT, UINT, UINT]
+user32.PeekMessageW.restype = BOOL
+
+user32.PostThreadMessageW.argtypes = [DWORD, UINT, WPARAM, LPARAM]
+user32.PostThreadMessageW.restype = BOOL
+
+# Global hotkey functions
+user32.RegisterHotKey.argtypes = [HWND, INT, UINT, UINT]
+user32.RegisterHotKey.restype = BOOL
+
+user32.UnregisterHotKey.argtypes = [HWND, INT]
+user32.UnregisterHotKey.restype = BOOL
 
 user32.DefWindowProcW.argtypes = [HWND, UINT, WPARAM, LPARAM]
 user32.DefWindowProcW.restype = c_long
@@ -125,6 +141,9 @@ user32.PostMessageW.restype = c_int
 
 user32.SetTimer.argtypes = [HWND, UINT, UINT, LPVOID]
 user32.SetTimer.restype = c_int
+
+user32.KillTimer.argtypes = [HWND, UINT]
+user32.KillTimer.restype = BOOL
 
 user32.FindWindowW.argtypes = [LPCWSTR, LPCWSTR]
 user32.FindWindowW.restype = HWND
@@ -288,6 +307,10 @@ def PostMessage(hwnd: int, msg: int, wParam: int, lParam: int) -> int:
 
 def SetTimer(hwnd: int, nIDEvent: int, uElapse: int, lpTimerFunc: LPVOID | None):
     return user32.SetTimer(hwnd, nIDEvent, uElapse, lpTimerFunc)
+
+
+def KillTimer(hwnd: int, uIDEvent: int):
+    return user32.KillTimer(hwnd, uIDEvent)
 
 
 def FindWindow(lpClassName: str | None, lpWindowName: str | None):

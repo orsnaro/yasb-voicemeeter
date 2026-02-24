@@ -1,3 +1,5 @@
+import ctypes
+import ctypes.wintypes as wintypes
 import math
 import os
 import platform
@@ -9,14 +11,28 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, TypeGuard, cast, override
 
-import psutil
+import yaml
+from pydantic import ValidationError
 from PyQt6 import sip
-from PyQt6.QtCore import QEvent, QObject, QPoint, QPropertyAnimation, QRect, QSize, Qt, QTimer, pyqtSlot
+from PyQt6.QtCore import (
+    QEasingCurve,
+    QEvent,
+    QObject,
+    QPoint,
+    QPropertyAnimation,
+    QRect,
+    QSize,
+    Qt,
+    QTimer,
+    pyqtProperty,
+    pyqtSlot,
+)
 from PyQt6.QtGui import (
     QColor,
     QFontMetrics,
     QPainter,
     QPaintEvent,
+    QPalette,
     QResizeEvent,
     QScreen,
     QStaticText,
@@ -26,6 +42,9 @@ from PyQt6.QtWidgets import QApplication, QDialog, QFrame, QGraphicsDropShadowEf
 from winrt.windows.data.xml.dom import XmlDocument
 from winrt.windows.ui.notifications import ToastNotification, ToastNotificationManager
 
+from core.utils.win32.bindings.kernel32 import kernel32
+from core.utils.win32.constants import TH32CS_SNAPPROCESS
+from core.utils.win32.structs import PROCESSENTRY32
 from core.utils.win32.win32_accent import Blur
 
 
@@ -150,10 +169,26 @@ def get_relative_time(iso_timestamp: str) -> str:
 
 
 def is_process_running(process_name: str) -> bool:
-    for proc in psutil.process_iter(["name"]):
-        if proc.info["name"] == process_name:
-            return True
-    return False
+    snapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+    if snapshot == wintypes.HANDLE(-1).value:
+        return False
+
+    try:
+        entry = PROCESSENTRY32()
+        entry.dwSize = ctypes.sizeof(PROCESSENTRY32)
+
+        if not kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
+            return False
+
+        target = process_name.lower()
+        while True:
+            if entry.szExeFile.lower() == target:
+                return True
+            if not kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
+                break
+        return False
+    finally:
+        kernel32.CloseHandle(snapshot)
 
 
 def percent_to_float(percent: str) -> float:
@@ -212,8 +247,199 @@ def refresh_widget_style(*widgets: QWidget) -> None:
             pass
 
 
-def build_widget_label(self, content: str, content_alt: str = None, content_shadow: dict = None):
-    def process_content(content, is_alt=False):
+class LoaderLine(QWidget):
+    """An animated horizontal loading indicator that displays a sliding segment.
+
+    The loader can be attached to any widget and will automatically position
+    itself at the bottom edge, resizing when the parent widget changes size.
+
+    Example:
+        loader = LoaderLine(parent)
+        loader.configure(
+            class_name="my-loader",
+            height=2,
+            duration_ms=1800,
+            segment_ratio=0.25,
+            easing=QEasingCurve.Type.Linear
+        )
+        loader.attach_to_widget(target_widget)
+        loader.start()
+
+    Attributes:
+        offset (pyqtProperty[float]): Animation progress from 0.0 to 1.0.
+
+    """
+
+    def __init__(self, parent: QWidget | None = None):
+        """Initialize the loader line widget.
+
+        Args:
+            parent: Optional parent widget.
+        """
+        super().__init__(parent)
+        self._offset = 0.0
+        self._segment_ratio = 0.18
+        self._animation = QPropertyAnimation(self, b"offset", self)
+        self._animation.setDuration(2400)
+        self._animation.setStartValue(0.0)
+        self._animation.setEndValue(1.0)
+        self._animation.setLoopCount(-1)
+        self._animation.setEasingCurve(QEasingCurve.Type.InOutSine)
+        self.setFixedHeight(1)
+        self.setVisible(False)
+        self._target_widget: QWidget | None = None
+        self._auto_position_enabled = False
+        self.setProperty("class", "loader-line")
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.raise_()
+
+    def configure(
+        self,
+        class_name: str | None = None,
+        duration_ms: int | None = None,
+        easing: QEasingCurve.Type | None = None,
+        segment_ratio: float | None = None,
+        height: int | None = None,
+    ) -> None:
+        """Configure style and animation settings.
+
+        All parameters are optional. When omitted, current defaults remain unchanged.
+
+        Args:
+            class_name: CSS class name for styling (default: "loader-line").
+            duration_ms: Animation cycle duration in milliseconds (default: 2400).
+            easing: Animation easing curve type (default: QEasingCurve.Type.InOutSine).
+            segment_ratio: Width of the sliding segment as a ratio of total width (default: 0.18).
+            height: Fixed height of the loader in pixels (default: 1).
+        """
+        if class_name:
+            self.setProperty("class", class_name)
+        if duration_ms is not None:
+            self._animation.setDuration(duration_ms)
+        if easing is not None:
+            self._animation.setEasingCurve(easing)
+        if segment_ratio is not None:
+            self._segment_ratio = segment_ratio
+        if height is not None:
+            self.setFixedHeight(height)
+            self._position_in_widget()
+
+    def attach_to_widget(self, target_widget: QWidget) -> None:
+        """Attach to a widget and auto-position at the bottom edge.
+
+        Args:
+            target_widget: The widget to attach to. The loader will be reparented
+                to this widget and positioned at its bottom edge.
+        """
+        if not target_widget:
+            return
+        self._target_widget = target_widget
+        if self.parent() is not target_widget:
+            self.setParent(target_widget)
+        self._auto_position_enabled = True
+        target_widget.installEventFilter(self)
+        target_widget.destroyed.connect(lambda: self.detach_from_widget())
+        QTimer.singleShot(0, self._position_in_widget)
+
+    def detach_from_widget(self) -> None:
+        """Detach from the current target widget and stop auto-positioning."""
+        if self._target_widget and is_valid_qobject(self._target_widget):
+            try:
+                self._target_widget.removeEventFilter(self)
+            except Exception:
+                pass
+        self._target_widget = None
+        self._auto_position_enabled = False
+
+    def _position_in_widget(self) -> None:
+        target_widget = self._target_widget
+        if not target_widget or not is_valid_qobject(target_widget):
+            return
+        try:
+            h = self.maximumHeight()
+            if h <= 0 or h >= 10000:
+                h = self.height() or self.sizeHint().height() or 2
+            self.setGeometry(0, target_widget.height() - h, target_widget.width(), h)
+        except RuntimeError:
+            pass
+
+    def eventFilter(self, obj: QObject, event: QEvent):
+        if self._auto_position_enabled and obj is self._target_widget and event.type() == QEvent.Type.Resize:
+            self._position_in_widget()
+        return super().eventFilter(obj, event)
+
+    def start(self) -> None:
+        """Start the loading animation and make the widget visible."""
+        if self._animation.state() == QPropertyAnimation.State.Running:
+            return
+        self._offset = 0.0
+        self.setVisible(True)
+        self._animation.start()
+
+    def stop(self) -> None:
+        """Stop the loading animation and hide the widget."""
+        if self._animation.state() == QPropertyAnimation.State.Running:
+            self._animation.stop()
+        self.setVisible(False)
+        self.update()
+
+    def getOffset(self) -> float:
+        return self._offset
+
+    def setOffset(self, value: float) -> None:
+        self._offset = value
+        self.update()
+
+    offset = pyqtProperty(float, fget=getOffset, fset=setOffset)
+
+    def paintEvent(self, event: QPaintEvent):
+        if not self.isVisible():
+            return
+        w = self.width()
+        h = self.height()
+        if w <= 0 or h <= 0:
+            return
+        phase = min(max(self._offset, 0.0), 1.0)
+        size_scale = 0.2 + 1.2 * (1 - (2 * phase - 1) ** 2)
+        segment_w = max(6, int(w * self._segment_ratio * size_scale))
+        x = int((w + segment_w) * self._offset) - segment_w
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        line_color = self.palette().color(QPalette.ColorRole.WindowText)
+        painter.fillRect(x, 0, segment_w, h, QColor(line_color))
+
+
+def format_pydantic_errors_to_yaml(exc: ValidationError) -> str:
+    """Format a Pydantic ValidationError to a YAML string."""
+    tree = {}
+    for error in exc.errors():
+        current = tree
+        loc = error["loc"]
+
+        # Walk through the path (e.g., ('nested', 0, 'field'))
+        for i, part in enumerate(loc):
+            # If we are at the last part, it's the actual error location
+            if i == len(loc) - 1:
+                if part not in current:
+                    current[part] = []
+                # Handle cases where Pydantic returns multiple errors for one field
+                current[part].append(error["msg"])
+            else:
+                # If the path doesn't exist, create a dict for the next level
+                if part not in current or not isinstance(current[part], dict):
+                    current[part] = {}
+                current = current[part]
+
+    return yaml.dump(tree, default_flow_style=False, sort_keys=False)
+
+
+def build_widget_label(
+    self: QWidget,
+    content: str,
+    content_alt: str | None = None,
+    content_shadow: dict[str, Any] | None = None,
+):
+    def process_content(content: str, is_alt: bool = False) -> list[QLabel]:
         label_parts = re.split("(<span.*?>.*?</span>)", content)
         label_parts = [part for part in label_parts if part]
         widgets = []
@@ -317,6 +543,11 @@ class PopupWidget(QWidget):
         resizeEvent(event): Handle the resize event for the popup.
     """
 
+    # Class-level registry to track open popups per parent widget
+    # This will help to manage toggle behavior when we use keybindings to open/close popups
+    # But this should be revisited maybe is there a better way to manage this
+    _open_popups: dict[int, "PopupWidget"] = {}
+
     def __init__(
         self,
         parent: QWidget,
@@ -324,6 +555,7 @@ class PopupWidget(QWidget):
         round_corners: bool = False,
         round_corners_type: str = "normal",
         border_color: str = "None",
+        dark_mode: bool = False,
     ):
         super().__init__(parent)
 
@@ -338,6 +570,7 @@ class PopupWidget(QWidget):
         self._round_corners = round_corners
         self._round_corners_type = round_corners_type
         self._border_color = border_color
+        self._dark_mode = dark_mode
         self._parent = parent
         self._suspend_close = False
         # We need bar_id for global_state autohide manager
@@ -350,8 +583,6 @@ class PopupWidget(QWidget):
         self._fade_animation.finished.connect(self._on_animation_finished)
 
         self._is_closing = False
-
-        QApplication.instance().installEventFilter(self)
 
     def setProperty(self, name, value):
         super().setProperty(name, value)
@@ -413,9 +644,18 @@ class PopupWidget(QWidget):
     def _on_animation_finished(self):
         """Handle animation completion."""
         if self._is_closing:
+            # Remove from registry
+            try:
+                parent_id = id(self._parent)
+                if parent_id in PopupWidget._open_popups and PopupWidget._open_popups[parent_id] is self:
+                    PopupWidget._open_popups.pop(parent_id, None)
+            except Exception:
+                pass
+
             try:
                 super().hide()
                 self.deleteLater()
+
             except Exception:
                 pass
 
@@ -449,6 +689,15 @@ class PopupWidget(QWidget):
             pass
 
         self._is_closing = True
+
+        # Remove from registry
+        try:
+            parent_id = id(self._parent)
+            if parent_id in PopupWidget._open_popups and PopupWidget._open_popups[parent_id] is self:
+                PopupWidget._open_popups.pop(parent_id, None)
+        except Exception:
+            pass
+
         try:
             super().hide()
             self.deleteLater()
@@ -460,12 +709,38 @@ class PopupWidget(QWidget):
         event.ignore()  # Ignore the default close behavior
         self.hide_animated()
 
+    def show(self):
+        """Show the popup with toggle support."""
+        parent_id = id(self._parent)
+
+        if parent_id in PopupWidget._open_popups:
+            existing_popup = PopupWidget._open_popups[parent_id]
+            if existing_popup is not self:
+                try:
+                    # Only toggle-close if popup is visible and NOT already closing
+                    # (if _is_closing is True, it means eventFilter already handled it)
+                    if existing_popup.isVisible() and not existing_popup._is_closing:
+                        existing_popup.hide_animated()
+                        return
+                except RuntimeError:
+                    pass
+                PopupWidget._open_popups.pop(parent_id, None)
+
+        super().show()
+
     def showEvent(self, event):
+        # Install event filter only when popup is actually shown
+        QApplication.instance().installEventFilter(self)
+
+        # Register this popup in the class-level registry for toggle support
+        parent_id = id(self._parent)
+        PopupWidget._open_popups[parent_id] = self
+
         if self._blur:
             Blur(
                 self.winId(),
                 Acrylic=True if is_windows_10() else False,
-                DarkMode=False,
+                DarkMode=self._dark_mode,
                 RoundCorners=False if is_windows_10() else self._round_corners,
                 RoundCornersType=self._round_corners_type,
                 BorderColor=self._border_color,

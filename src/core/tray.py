@@ -3,7 +3,6 @@ import os
 import shutil
 import subprocess
 import threading
-import webbrowser
 from pathlib import Path
 
 from PyQt6.QtCore import QEvent, QSize, Qt
@@ -14,6 +13,7 @@ from core.bar_manager import BarManager
 from core.config import get_config
 from core.ui.windows.about import AboutDialog
 from core.utils.controller import exit_application, reload_application
+from core.utils.shell_utils import shell_open
 from core.utils.win32.utilities import apply_qmenu_style, disable_autostart, enable_autostart, is_autostart_enabled
 from settings import (
     APP_NAME,
@@ -63,15 +63,15 @@ class SystemTrayManager(QSystemTrayIcon):
         except Exception as e:
             logging.error(f"Error loading config: {e}")
             return
-        if config["komorebi"]:
-            self.komorebi_start = config["komorebi"]["start_command"]
-            self.komorebi_stop = config["komorebi"]["stop_command"]
-            self.komorebi_reload = config["komorebi"]["reload_command"]
+        if config and config.komorebi:
+            self.komorebi_start = config.komorebi.start_command
+            self.komorebi_stop = config.komorebi.stop_command
+            self.komorebi_reload = config.komorebi.reload_command
 
-        if config["glazewm"]:
-            self.glazewm_start = config["glazewm"]["start_command"]
-            self.glazewm_stop = config["glazewm"]["stop_command"]
-            self.glazewm_reload = config["glazewm"]["reload_command"]
+        if config and config.glazewm:
+            self.glazewm_start = config.glazewm.start_command
+            self.glazewm_stop = config.glazewm.stop_command
+            self.glazewm_reload = config.glazewm.reload_command
 
     def _load_favicon(self):
         # Get the current directory of the script
@@ -249,7 +249,7 @@ class SystemTrayManager(QSystemTrayIcon):
 
     def _open_in_browser(self, url):
         try:
-            webbrowser.open(url)
+            shell_open(url)
         except Exception as e:
             logging.error(f"Failed to open browser: {e}")
 

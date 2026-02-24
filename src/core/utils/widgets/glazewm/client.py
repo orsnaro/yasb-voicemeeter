@@ -33,7 +33,7 @@ class Window:
 class Workspace:
     name: str
     display_name: str
-    focus: bool = False
+    focus: bool = False  # Global focus - only ONE workspace has this True
     is_displayed: bool = False
     num_windows: int = 0
     windows: list[Window] = field(default_factory=list)
@@ -112,14 +112,20 @@ class GlazewmClient(QObject):
     def focus_prev_workspace(self):
         self._websocket.sendTextMessage("command focus --prev-active-workspace-on-monitor")
 
+    def focus_next_workspace_global(self):
+        self._websocket.sendTextMessage("command focus --next-active-workspace")
+
+    def focus_prev_workspace_global(self):
+        self._websocket.sendTextMessage("command focus --prev-active-workspace")
+
     def connect(self):
         if self._websocket.state() == QAbstractSocket.SocketState.ConnectedState:
             return
-        logger.debug(f"Connecting to {self._uri}...")
+        logger.debug(f"Connecting to {self._uri.toString()}")
         self._websocket.open(self._uri)
 
     def _on_connected(self) -> None:
-        logger.debug(f"Connected to {self._uri}")
+        logger.debug(f"Connected to {self._uri.toString()}")
         for message in self.initial_messages:
             logger.debug(f"Sent initial message: {message}")
             self._websocket.sendTextMessage(message)
@@ -132,7 +138,7 @@ class GlazewmClient(QObject):
         self.glazewm_connection_status.emit(state == QAbstractSocket.SocketState.ConnectedState)
 
     def _on_error(self, error: QAbstractSocket.SocketError) -> None:
-        logger.warning(f"WebSocket error: {error}\nReconnecting...")
+        logger.warning(f"WebSocket error: {error}. Reconnecting...")
         self._reconnect_timer.start()
 
     def _handle_message(self, message: str):

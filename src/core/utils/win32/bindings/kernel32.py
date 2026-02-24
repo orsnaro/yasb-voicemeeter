@@ -17,8 +17,10 @@ from ctypes.wintypes import (
     LPDWORD,
     LPVOID,
     LPWSTR,
+    ULONG,
 )
 
+from core.utils.win32.structs import SYSTEM_POWER_STATUS
 from core.utils.win32.typecheck import CArgObject
 
 kernel32 = windll.kernel32
@@ -131,6 +133,37 @@ kernel32.FormatMessageW.restype = DWORD
 # Additional kernel32 APIs
 kernel32.GetCurrentThreadId.argtypes = []
 kernel32.GetCurrentThreadId.restype = DWORD
+
+kernel32.GetModuleHandleW.argtypes = [LPCWSTR]
+kernel32.GetModuleHandleW.restype = HANDLE
+
+kernel32.GetLastError.argtypes = []
+kernel32.GetLastError.restype = DWORD
+
+# GetSystemPowerStatus - Battery/power status
+kernel32.GetSystemPowerStatus.argtypes = [POINTER(SYSTEM_POWER_STATUS)]
+kernel32.GetSystemPowerStatus.restype = BOOL
+
+# GetSystemInfo - System information
+kernel32.GetSystemInfo.argtypes = [LPVOID]
+kernel32.GetSystemInfo.restype = None
+
+# Process enumeration and termination
+kernel32.CreateToolhelp32Snapshot.argtypes = [DWORD, DWORD]
+kernel32.CreateToolhelp32Snapshot.restype = HANDLE
+
+kernel32.Process32FirstW.argtypes = [HANDLE, LPVOID]
+kernel32.Process32FirstW.restype = BOOL
+
+kernel32.Process32NextW.argtypes = [HANDLE, LPVOID]
+kernel32.Process32NextW.restype = BOOL
+
+kernel32.TerminateProcess.argtypes = [HANDLE, DWORD]
+kernel32.TerminateProcess.restype = BOOL
+
+# GetLogicalProcessorInformationEx - Processor topology
+kernel32.GetLogicalProcessorInformationEx.argtypes = [ULONG, LPVOID, POINTER(DWORD)]
+kernel32.GetLogicalProcessorInformationEx.restype = BOOL
 
 
 # --- Python-friendly typed wrapper functions ---
@@ -268,3 +301,11 @@ def FormatMessage(
 
 def GetCurrentThreadId() -> int:
     return int(kernel32.GetCurrentThreadId())
+
+
+def GetModuleHandle(lpModuleName: str | None) -> int:
+    return kernel32.GetModuleHandleW(lpModuleName)
+
+
+def GetLastError() -> int:
+    return int(kernel32.GetLastError())
