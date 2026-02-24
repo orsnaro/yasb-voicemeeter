@@ -97,7 +97,7 @@ class VoicemeeterWidget(BaseWidget):
         self._update_label()
 
     def _toggle_volume_menu(self):
-        if self.config.animation["enabled"]:
+        if self.config.animation.enabled:
             AnimationManager.animate(self, self.config.animation.type, self.config.animation.duration)
         self.show_volume_menu()
 
@@ -538,12 +538,12 @@ class VoicemeeterWidget(BaseWidget):
         )
         self.dialog.show()
         # Automatically expand app volumes if configured
-        if audio_sessions and self.config.audio_menu["show_apps_expanded"] and self.config.audio_menu["show_apps"]:
+        if audio_sessions and self.config.audio_menu.show_apps_expanded and self.config.audio_menu.show_apps:
             self._toggle_app_volumes()
 
     def _toggle_label(self):
         if self.config.animation.enabled:
-            AnimationManager.animate(self, self.config.animation["type"], self.config.animation["duration"])
+            AnimationManager.animate(self, self.config.animation.type, self.config.animation.duration)
         self._show_alt_label = not self._show_alt_label
         for widget in self._widgets:
             widget.setVisible(not self._show_alt_label)
