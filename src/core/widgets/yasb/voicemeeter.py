@@ -253,7 +253,7 @@ class VoicemeeterWidget(BaseWidget):
 
     def _apply_slider_scroll_step(self, slider: QSlider):
         """Apply scroll_step to slider wheel/keyboard increments."""
-        step = max(1, self.config.scroll_step * 100)
+        step = max(1, self.config.scroll_step)
         slider.setSingleStep(step)
         slider.setPageStep(step)
 
