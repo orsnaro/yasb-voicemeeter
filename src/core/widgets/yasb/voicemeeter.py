@@ -5,15 +5,7 @@ import re
 from PIL import Image
 from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRect, Qt
 from PyQt6.QtGui import QImage, QPixmap, QWheelEvent
-from PyQt6.QtWidgets import (
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QSlider,
-    QVBoxLayout,
-    QWidget,
-)
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout, QWidget
 
 from core.utils.tooltip import CustomToolTip, set_tooltip
 from core.utils.utilities import (
@@ -49,9 +41,7 @@ class VoicemeeterWidget(BaseWidget):
             synced_outputs_count=self.config.synced_outputs_count,
         )
         self._class_name = (
-            f"voicemeeter-widget {self.config.class_name}"
-            if self.config.class_name is None
-            else self.config.class_name
+            f"voicemeeter-widget {self.config.class_name}" if self.config.class_name is None else self.config.class_name
         )
         super().__init__(class_name=f"{self._class_name}")
         self._show_alt_label = False
@@ -59,25 +49,18 @@ class VoicemeeterWidget(BaseWidget):
         self._icon_cache = {}
         self._dpi = 1.0
 
-        self.progress_widget = build_progress_widget(self, self.config.progress_bar)
+        self.progress_widget = build_progress_widget(self, self.config.progress_bar.model_dump())
 
         self._widget_container_layout = QHBoxLayout()
         self._widget_container_layout.setSpacing(0)
-        self._widget_container_layout.setContentsMargins(
-            self.config.container_padding["left"],
-            self.config.container_padding["top"],
-            self.config.container_padding["right"],
-            self.config.container_padding["bottom"],
-        )
+        self._widget_container_layout.setContentsMargins(0, 0, 0, 0)
         self._widget_container = QFrame()
         self._widget_container.setLayout(self._widget_container_layout)
         self._widget_container.setProperty("class", "widget-container")
-        add_shadow(self._widget_container, self.config.container_shadow)
+        add_shadow(self._widget_container, self.config.container_shadow.model_dump())
         self.widget_layout.addWidget(self._widget_container)
 
-        build_widget_label(
-            self, self.config.label, self.config.label_alt, self._label_shadow
-        )
+        build_widget_label(self, self.config.label, self.config.label_alt, self.config.label_shadow.model_dump())
 
         self.register_callback("toggle_label", self._toggle_label)
         self.register_callback("update_label", self._update_label)
@@ -88,9 +71,7 @@ class VoicemeeterWidget(BaseWidget):
         self.callback_right = self.config.callbacks.on_right
         self.callback_middle = self.config.callbacks.on_middle
 
-        self._service = (
-            self._vm_service if (self._vm_service != None) else AudioOutputService()
-        )
+        self._service = self._vm_service if (self._vm_service != None) else AudioOutputService()
         self._service.register_widget(self)
 
         self.volume = self._service.get_volume_interface()
@@ -117,9 +98,7 @@ class VoicemeeterWidget(BaseWidget):
 
     def _toggle_volume_menu(self):
         if self.config.animation["enabled"]:
-            AnimationManager.animate(
-                self, self.config.animation["type"], self.config.animation["duration"]
-            )
+            AnimationManager.animate(self, self.config.animation.type, self.config.animation.duration)
         self.show_volume_menu()
 
     def _on_slider_released(self):
@@ -146,9 +125,7 @@ class VoicemeeterWidget(BaseWidget):
         ratio = (value - slider.minimum()) / slider_range
         x_offset = int(slider.width() * ratio)
         global_pos = slider.mapToGlobal(slider.rect().topLeft())
-        handle_rect = QRect(
-            global_pos.x() + x_offset, global_pos.y(), 1, slider.height()
-        )
+        handle_rect = QRect(global_pos.x() + x_offset, global_pos.y(), 1, slider.height())
 
         if not hasattr(self, "_slider_tooltip") or not self._slider_tooltip:
             self._slider_tooltip = CustomToolTip()
@@ -197,9 +174,7 @@ class VoicemeeterWidget(BaseWidget):
         """Update the visual state of an app's icon and slider based on mute status"""
         try:
             # Get the original icon
-            app_icon = self._get_process_icon_pixmap(
-                pid, icon_size=16, force_grayscale=is_muted
-            )
+            app_icon = self._get_process_icon_pixmap(pid, icon_size=16, force_grayscale=is_muted)
             if app_icon:
                 icon_label.setPixmap(app_icon)
 
@@ -210,9 +185,7 @@ class VoicemeeterWidget(BaseWidget):
 
     def _toggle_app_volumes(self):
         """Toggle the visibility of application volume sliders with animation"""
-        if not hasattr(self, "app_volumes_container") or not hasattr(
-            self, "app_volumes_expanded"
-        ):
+        if not hasattr(self, "app_volumes_container") or not hasattr(self, "app_volumes_expanded"):
             return
 
         # Toggle the expanded state
@@ -224,18 +197,14 @@ class VoicemeeterWidget(BaseWidget):
             content_height = self.app_volumes_container.sizeHint().height()
             target_height = content_height
             current_height = 0
-            self.app_toggle_btn.setText(
-                self.config.audio_menu["app_icons"]["toggle_up"]
-            )
+            self.app_toggle_btn.setText(self.config.audio_menu.app_icons.toggle_up)
             self.app_toggle_btn.setProperty("class", "toggle-apps expanded")
             if self.config.tooltip:
                 set_tooltip(self.app_toggle_btn, "Collapse application volumes")
         else:
             target_height = 0
             current_height = self.app_volumes_container.height()
-            self.app_toggle_btn.setText(
-                self.config.audio_menu["app_icons"]["toggle_down"]
-            )
+            self.app_toggle_btn.setText(self.config.audio_menu.app_icons.toggle_down)
             self.app_toggle_btn.setProperty("class", "toggle-apps")
             if self.config.tooltip:
                 set_tooltip(self.app_toggle_btn, "Expand application volumes")
@@ -253,9 +222,7 @@ class VoicemeeterWidget(BaseWidget):
         self.app_volumes_container.setMaximumHeight(current_height)
 
         # Create animation
-        self.app_volume_animation = QPropertyAnimation(
-            self.app_volumes_container, b"maximumHeight"
-        )
+        self.app_volume_animation = QPropertyAnimation(self.app_volumes_container, b"maximumHeight")
         self.app_volume_animation.setDuration(200)
         self.app_volume_animation.setStartValue(current_height)
         self.app_volume_animation.setEndValue(target_height)
@@ -266,9 +233,7 @@ class VoicemeeterWidget(BaseWidget):
 
         # Hide container after animation completes if collapsing
         if not self.app_volumes_expanded:
-            self.app_volume_animation.finished.connect(
-                lambda: self.app_volumes_container.hide()
-            )
+            self.app_volume_animation.finished.connect(lambda: self.app_volumes_container.hide())
 
         self.app_volume_animation.start()
 
@@ -288,7 +253,7 @@ class VoicemeeterWidget(BaseWidget):
 
     def _apply_slider_scroll_step(self, slider: QSlider):
         """Apply scroll_step to slider wheel/keyboard increments."""
-        step = max(1, int(round(self.config.scroll_step * 100)))
+        step = max(1, self.config.scroll_step * 100)
         slider.setSingleStep(step)
         slider.setPageStep(step)
 
@@ -297,9 +262,7 @@ class VoicemeeterWidget(BaseWidget):
         name = name.removesuffix(".exe").replace(".", " ").title()
         return name if len(name) <= 23 else f"{name[:20]}..."
 
-    def _get_process_icon_pixmap(
-        self, pid: int, icon_size: int = 16, force_grayscale: bool = False
-    ) -> QPixmap | None:
+    def _get_process_icon_pixmap(self, pid: int, icon_size: int = 16, force_grayscale: bool = False) -> QPixmap | None:
         """Get icon for a process and convert to QPixmap with DPI-aware caching"""
         try:
             # Create cache key with PID, icon_size, DPI, and grayscale state
@@ -314,9 +277,7 @@ class VoicemeeterWidget(BaseWidget):
                 if icon_img:
                     # Resize and convert to RGBA with DPI scaling
                     scaled_size = int(icon_size * self._dpi)
-                    icon_img = icon_img.resize(
-                        (scaled_size, scaled_size), Image.LANCZOS
-                    )
+                    icon_img = icon_img.resize((scaled_size, scaled_size), Image.LANCZOS)
                     icon_img = icon_img.convert("RGBA")
 
                     # Apply grayscale if muted
@@ -333,9 +294,7 @@ class VoicemeeterWidget(BaseWidget):
 
             # Convert to QPixmap
             data = icon_img.tobytes("raw", "RGBA")
-            qimage = QImage(
-                data, icon_img.width, icon_img.height, QImage.Format.Format_RGBA8888
-            )
+            qimage = QImage(data, icon_img.width, icon_img.height, QImage.Format.Format_RGBA8888)
             pixmap = QPixmap.fromImage(qimage)
             pixmap.setDevicePixelRatio(self._dpi)
             return pixmap
@@ -369,10 +328,10 @@ class VoicemeeterWidget(BaseWidget):
 
         self.dialog = PopupWidget(
             self,
-            self.config.audio_menu["blur"],
-            self.config.audio_menu["round_corners"],
-            self.config.audio_menu["round_corners_type"],
-            self.config.audio_menu["border_color"],
+            self.config.audio_menu.blur,
+            self.config.audio_menu.round_corners,
+            self.config.audio_menu.round_corners_type,
+            self.config.audio_menu.border_color,
         )
         self.dialog.setProperty("class", "audio-menu")
 
@@ -442,7 +401,7 @@ class VoicemeeterWidget(BaseWidget):
         slider_row.addWidget(self.volume_slider)
 
         audio_sessions = []
-        if self.config.audio_menu["show_apps"]:
+        if self.config.audio_menu.show_apps:
             # Get active audio sessions directly from service
             audio_sessions = self._service.get_active_audio_sessions(
                 get_app_name_callback=get_app_name_from_pid,
@@ -450,9 +409,7 @@ class VoicemeeterWidget(BaseWidget):
             )
             # Add app toggle button on the right (only if there are audio sessions)
             if audio_sessions:
-                self.app_toggle_btn = QPushButton(
-                    self.config.audio_menu["app_icons"]["toggle_down"]
-                )
+                self.app_toggle_btn = QPushButton(self.config.audio_menu.app_icons.toggle_down)
                 self.app_toggle_btn.setProperty("class", "toggle-apps")
                 self.app_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
                 self.app_toggle_btn.clicked.connect(lambda: self._toggle_app_volumes())
@@ -465,7 +422,7 @@ class VoicemeeterWidget(BaseWidget):
         layout.addWidget(global_container)
 
         # Create per-application volume sliders section
-        if audio_sessions and self.config.audio_menu["show_apps"]:
+        if audio_sessions and self.config.audio_menu.show_apps:
             self.app_volumes_container = QFrame()
             self.app_volumes_container.setProperty("class", "apps-container")
             app_volumes_layout = QVBoxLayout()
@@ -479,10 +436,8 @@ class VoicemeeterWidget(BaseWidget):
                 app_layout.setSpacing(0)
                 app_layout.setContentsMargins(0, 0, 0, 0)
 
-                display_name = session_info.get(
-                    "app_name", self._format_session_label(session_info["name"])
-                )
-                if self.config.audio_menu["show_app_labels"]:
+                display_name = session_info.get("app_name", self._format_session_label(session_info["name"]))
+                if self.config.audio_menu.show_app_labels:
                     app_label = QLabel(display_name)
                     app_label.setProperty("class", "app-label")
                     app_layout.addWidget(app_label)
@@ -496,7 +451,9 @@ class VoicemeeterWidget(BaseWidget):
                 except:
                     is_muted = False
 
-                if self.config.audio_menu["show_app_icons"]:
+                icon_label = None
+                icon_frame = None
+                if self.config.audio_menu.show_app_icons:
                     icon_frame = QFrame()
                     icon_frame.setContentsMargins(0, 0, 0, 0)
                     icon_frame.setProperty("class", "app-icon-container")
@@ -531,9 +488,7 @@ class VoicemeeterWidget(BaseWidget):
                 self._apply_slider_scroll_step(app_slider)
 
                 try:
-                    app_volume = int(
-                        session_info["volume_interface"].GetMasterVolume() * 100
-                    )
+                    app_volume = int(session_info["volume_interface"].GetMasterVolume() * 100)
                     app_slider.setValue(app_volume)
                 except:
                     app_slider.setValue(100)
@@ -549,7 +504,7 @@ class VoicemeeterWidget(BaseWidget):
                 # Connect slider release to hide tooltip
                 app_slider.sliderReleased.connect(self._on_slider_released)
 
-                if self.config.audio_menu["show_app_icons"]:
+                if self.config.audio_menu.show_app_icons:
                     # Make icon frame clickable to toggle mute
                     icon_frame.mousePressEvent = (
                         lambda event, vol_interface=session_info["volume_interface"], icon=icon_label, slider=app_slider, pid=session_info["pid"]: (
@@ -576,25 +531,19 @@ class VoicemeeterWidget(BaseWidget):
         # Position the dialog
         self.dialog.adjustSize()
         self.dialog.setPosition(
-            alignment=self.config.audio_menu["alignment"],
-            direction=self.config.audio_menu["direction"],
-            offset_left=self.config.audio_menu["offset_left"],
-            offset_top=self.config.audio_menu["offset_top"],
+            alignment=self.config.audio_menu.alignment,
+            direction=self.config.audio_menu.direction,
+            offset_left=self.config.audio_menu.offset_left,
+            offset_top=self.config.audio_menu.offset_top,
         )
         self.dialog.show()
         # Automatically expand app volumes if configured
-        if (
-            audio_sessions
-            and self.config.audio_menu["show_apps_expanded"]
-            and self.config.audio_menu["show_apps"]
-        ):
+        if audio_sessions and self.config.audio_menu["show_apps_expanded"] and self.config.audio_menu["show_apps"]:
             self._toggle_app_volumes()
 
     def _toggle_label(self):
-        if self.config.animation["enabled"]:
-            AnimationManager.animate(
-                self, self.config.animation["type"], self.config.animation["duration"]
-            )
+        if self.config.animation.enabled:
+            AnimationManager.animate(self, self.config.animation["type"], self.config.animation["duration"])
         self._show_alt_label = not self._show_alt_label
         for widget in self._widgets:
             widget.setVisible(not self._show_alt_label)
@@ -604,9 +553,7 @@ class VoicemeeterWidget(BaseWidget):
 
     def _update_label(self):
         active_widgets = self._widgets_alt if self._show_alt_label else self._widgets
-        active_label_content = (
-            self.config.label_alt if self._show_alt_label else self.config.label
-        )
+        active_label_content = self.config.label_alt if self._show_alt_label else self.config.label
         label_parts = re.split("(<span.*?>.*?</span>)", active_label_content)
         label_parts = [part for part in label_parts if part]
         widget_index = 0
@@ -634,23 +581,13 @@ class VoicemeeterWidget(BaseWidget):
 
         label_options = {"{icon}": icon_volume, "{level}": level_volume}
 
-        if (
-            self.config.progress_bar["enabled"]
-            and self.progress_widget
-            and self.volume is not None
-        ):
+        if self.config.progress_bar.enabled and self.progress_widget and self.volume is not None:
             if self._widget_container_layout.indexOf(self.progress_widget) == -1:
                 self._widget_container_layout.insertWidget(
-                    0
-                    if self.config.progress_bar["position"] == "left"
-                    else self._widget_container_layout.count(),
+                    0 if self.config.progress_bar.position == "left" else self._widget_container_layout.count(),
                     self.progress_widget,
                 )
-            numeric_value = (
-                int(re.search(r"\d+", level_volume).group())
-                if re.search(r"\d+", level_volume)
-                else 0
-            )
+            numeric_value = int(re.search(r"\d+", level_volume).group()) if re.search(r"\d+", level_volume) else 0
             self.progress_widget.set_value(numeric_value)
 
         for part in label_parts:
@@ -660,21 +597,13 @@ class VoicemeeterWidget(BaseWidget):
                 for option, value in label_options.items():
                     formatted_text = formatted_text.replace(option, str(value))
                 if "<span" in part and "</span>" in part:
-                    if widget_index < len(active_widgets) and isinstance(
-                        active_widgets[widget_index], QLabel
-                    ):
+                    if widget_index < len(active_widgets) and isinstance(active_widgets[widget_index], QLabel):
                         active_widgets[widget_index].setText(formatted_text)
-                        self._set_device_state_classes(
-                            active_widgets[widget_index], mute_status == 1
-                        )
+                        self._set_device_state_classes(active_widgets[widget_index], mute_status == 1)
                 else:
-                    if widget_index < len(active_widgets) and isinstance(
-                        active_widgets[widget_index], QLabel
-                    ):
+                    if widget_index < len(active_widgets) and isinstance(active_widgets[widget_index], QLabel):
                         active_widgets[widget_index].setText(formatted_text)
-                        self._set_device_state_classes(
-                            active_widgets[widget_index], mute_status == 1
-                        )
+                        self._set_device_state_classes(active_widgets[widget_index], mute_status == 1)
                 widget_index += 1
 
     def _set_device_state_classes(self, widget, muted: bool):
@@ -722,7 +651,7 @@ class VoicemeeterWidget(BaseWidget):
             return
         try:
             current_volume = self.volume.GetMasterVolumeLevelScalar()
-            new_volume = min(current_volume + self.config.scroll_step, 1.0)
+            new_volume = min(current_volume + (self.config.scroll_step / 100), 1.0)
             self.volume.SetMasterVolumeLevelScalar(new_volume, None)
             if self.volume.GetMute() and new_volume > 0.0:
                 self.volume.SetMute(False, None)
@@ -736,7 +665,7 @@ class VoicemeeterWidget(BaseWidget):
             return
         try:
             current_volume = self.volume.GetMasterVolumeLevelScalar()
-            new_volume = max(current_volume - self.config.scroll_step, 0.0)
+            new_volume = max(current_volume - (self.config.scroll_step / 100), 0.0)
             self.volume.SetMasterVolumeLevelScalar(new_volume, None)
             if new_volume == 0.0:
                 self.volume.SetMute(True, None)
@@ -754,10 +683,8 @@ class VoicemeeterWidget(BaseWidget):
             self._decrease_volume()
 
     def toggle_mute(self):
-        if self.config.animation["enabled"]:
-            AnimationManager.animate(
-                self, self.config.animation["type"], self.config.animation["duration"]
-            )
+        if self.config.animation.enabled:
+            AnimationManager.animate(self, self.config.animation.type, self.config.animation.duration)
         if self.volume is None:
             return
         try:
