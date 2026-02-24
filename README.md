@@ -1,5 +1,5 @@
 <p align="center"><img src="https://raw.githubusercontent.com/amnweb/yasb/main/src/assets/images/app_icon.png" width="180"></p>
-<h1 align="center">YASB ORS FORK!<br> <h6 align="center"><i>forked from v1.8.6 x64 (stable) yasb</i></h6> </h1>
+<h1 align="center">YASB ORS FORK!<br> <h6 align="center"><i>Fork is coherent with v1.9.0 x64 (stable) yasb</i></h6> </h1>
   
 <p align="center">
   YASB (Yet Another Status Bar) is a highly configurable Windows status bar written in Python. Slightly edited to work better with Voicemeeter software!
@@ -42,7 +42,7 @@
 and trigger at log on (run with highest privilages)(dont check the run at log on with any user option)
 - EXTRA: if used with glazeWM edit its config startup commands option to `shell-exec path\to\pythonw.exe path\to\src\main.pyw`
 
-### Installing Yasb v1.8.6 original
+### Installing Yasb v1.9.0 original
 
 #### Installer
 - Download the latest installer from the [GitHub releases page](https://github.com/amnweb/yasb/releases/latest).
