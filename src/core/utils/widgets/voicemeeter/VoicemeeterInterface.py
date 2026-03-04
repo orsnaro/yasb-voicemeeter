@@ -28,7 +28,7 @@ class VoicemeeterApiLoginController:
             if vm_direct_global is None:
                 with _lock:
                     if vm_direct_global is None:
-                        logging.info(
+                        logging.debug(
                             f"{inspect.stack()[0][3]}(): was called!  id(vm_direct_global)  = {id(vm_direct_global)}"
                         )
                         # vm software has 3 versions: basic, banana, potato LOL
@@ -48,7 +48,7 @@ class VoicemeeterApiLoginController:
             if vm_direct_global is not None:
                 with _lock:
                     if vm_direct_global is not None:
-                        logging.info(
+                        logging.debug(
                             f"{inspect.stack()[0][3]}(): was called! stopping... id(vm_direct_global) = {id(vm_direct_global)}"
                         )
                         # software has 3 versions: normal,banana,potato LOL
@@ -105,6 +105,7 @@ class VoicemeeterInterface:
         self.synced_outputs_count = kwargs["synced_outputs_count"]
         self.main_output_bus = kwargs["main_output_bus"]
         self.vmcli_exe_path = kwargs["vmcli_exe_path"]  # backward compatibility
+        self.virtual_speakers_obj = kwargs.get("virtual_speakers_obj", None)
 
         self._shared_volume_callback = None
         VoicemeeterApiLoginController.Vm_api_login()
