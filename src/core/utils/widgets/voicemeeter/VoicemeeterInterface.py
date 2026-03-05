@@ -138,11 +138,11 @@ class VoicemeeterInterface:
 
         self.vm_direct.clear_dirty()
         try:
-            if self.vm_direct.stopped:
-                update_th = threading.Thread(target=self.vm_direct.init_thread, daemon=False)
-                update_th.start()
-                self.__class__._update_threads.add(update_th)
-                # self.vm_direct.init_thread()  # start vm updates watcher thread
+            if self.vm_direct.stopped():
+                # update_th = threading.Thread(target=self.vm_direct.init_thread, daemon=False)
+                # update_th.start()
+                # self.__class__._update_threads.add(update_th)
+                self.vm_direct.init_thread()  # start vm updates watcher thread
 
         except Exception as e:
             logging.error(f"{inspect.stack()[0][3]}():could not start vm api updates thread. Details: {e}")
@@ -158,11 +158,11 @@ class VoicemeeterInterface:
         # NOTE: will need this cuz without it
         # keyboard macros that changes gain/mute in voicemeeter is not reflected to voicemeeter widget slider or label
 
-        for th in list(self.__class__._update_threads):
-            th.join()
-            self.__class__._update_threads.remove(th)
+        # for th in list(self.__class__._update_threads):
+        #     th.join()
+        #     self.__class__._update_threads.remove(th)
 
-        # self.vm_direct.end_thread()
+        self.vm_direct.end_thread()
 
         self.vm_direct.event.remove(["pdirty"])
         self._shared_volume_callback = None
@@ -176,7 +176,7 @@ class VoicemeeterInterface:
                 f"{inspect.stack()[0][3]}(): this instance id: {instance_id} is not in watched instances {self.__class__._watched_instances}"
             )
 
-    def on_update(self, event):
+    def on_update(self, event):  # vm lib docs: can use on_{event}() e.g.(on_pdirty())
         try:
             self._shared_volume_callback.on_notify(0, 0, event, 0, 0)
         except Exception as e:
