@@ -1,16 +1,17 @@
+import inspect
 import logging
 import threading
 from typing import override
 
-import psutil
-from pycaw.callbacks import AudioEndpointVolumeCallback, MMNotificationClient
 from pycaw.constants import DEVICE_STATE
-from pycaw.pycaw import AudioDevice, AudioUtilities, EDataFlow, ERole
+from pycaw.pycaw import AudioDevice, AudioUtilities, EDataFlow
 
 from core.utils.widgets.voicemeeter.VoicemeeterInterface import VoicemeeterApiLoginController, VoicemeeterInterface
 from core.utils.widgets.volume.service import AudioOutputService
 
 
+# NOTE: if this inherited calss doesnt work doesn't work just try pasting AudioOutputService(QObject) as it is here
+# or using AudioOutputService(QObject) in volume/service.py directly
 class VoicemeeterService(AudioOutputService):
     def __init__(self, **kwargs):
         self.vmcli_exe_path = kwargs["vmcli_exe_path"]  # backward compatibility
@@ -34,7 +35,7 @@ class VoicemeeterService(AudioOutputService):
                     self._cached_speakers = speakers
                     if speakers or self._volume_interface is None:
                         self._volume_interface = self.get_volume_interface()
-                        logging.info("fetch(): initing audio with voicemeeterInterface!")
+                        logging.info(f"{inspect.stack()[0][3]}(): initing audio with voicemeeterInterface!")
 
                 with self._cache_lock:
                     if self._cached_devices is None:
@@ -48,7 +49,7 @@ class VoicemeeterService(AudioOutputService):
                         self._cached_sessions = AudioUtilities.GetAllSessions()
 
             except Exception as e:
-                logging.warning(f"from fetch(): failed to fetch volume service details: {e}")
+                logging.warning(f"from {inspect.stack()[0][3]}(): failed to fetch volume service details: {e}")
                 self._volume_interface = None
             finally:
                 self._initializing = False
@@ -60,17 +61,6 @@ class VoicemeeterService(AudioOutputService):
     def __del__(self):
         if self._volume_interface is not None and isinstance(self._volume_interface, VoicemeeterInterface):
             self._volume_interface.stop_vm_api()
-
-    # OVERRIDE
-    @override
-    def handle_device_restart(self):
-        logging.info("Attempting Handle audio device add/remove/change/restart")
-        try:
-            self._on_device_change()
-        except Exception as e:
-            logging.warning(
-                f"handle_device_restart(): An Issue Happend While Attempting Handling audio device add/remove/change/restart! Issue Details: {e}"
-            )
 
     # OVERRIDE
     @override
@@ -115,12 +105,11 @@ class VoicemeeterService(AudioOutputService):
                 main_output_bus=self.main_output_bus,
                 synced_outputs_count=self.synced_outputs_count,
                 virtual_speakers_obj=voicemeeter_device,
-                vm_service_handle_device_restart=self.handle_device_restart,
             )
 
         except Exception as e:
             logging.warning(
-                f"from try_voicemeeter_interface(): failed to use VoicemeeterInterface as the volume interface. Fallingback to default OS and yasb volume interface. err details: {e}"
+                f"from {inspect.stack()[0][3]}(): failed to use VoicemeeterInterface as the volume interface. Fallingback to default OS and yasb volume interface. err details: {e}"
             )
 
         return self._volume_interface
@@ -128,68 +117,8 @@ class VoicemeeterService(AudioOutputService):
     def try_win_api_volume_endpoint(self, speakers: AudioDevice):
         """Try using the win api volume endpoint as the volume interface"""
         try:
-            # kill voicemeeter GUI process IF running to stop it's keyboard media keys hook
-            voicmeeter_names = ("voicemeeterpro_x64.exe", "voicemeeterpro.exe")
-            self.kill_process_by_name(voicmeeter_names)
             self._volume_interface = speakers.EndpointVolume
         except Exception as e:
-            logging.warning(f"from try_win_api_volume_endpoint(): failed to use Win API Volume Endpoint. Details: {e}")
-        finally:
-            self._volume_interface = speakers.EndpointVolume
+            logging.warning(f"from {inspect.stack()[0][3]}(): failed to use Win API Volume Endpoint. Details: {e}")
 
         return self._volume_interface
-
-    def kill_process_by_name(self, process_names: tuple[str, str]):
-        found_and_killed = False
-
-        for proc in psutil.process_iter(["pid", "name"]):
-            try:
-                # check if the process name matches (case-insensitive)
-                if proc.info["name"]:
-                    proc_name_lower = proc.info["name"].lower()
-                    if any(target.lower() in proc_name_lower for target in process_names):
-                        proc.kill()  # forcefully terminates the matched process
-                        found_and_killed = True
-
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
-                logging.warning(f"Failed to kill {proc.info['name']} (PID: {proc.info['pid']}) - Error: {e}")
-
-        if not found_and_killed:
-            logging.warning(f"No running task found matching: '{process_names}'")
-
-
-class _SharedVolumeCallback(AudioEndpointVolumeCallback):
-    """Forwards volume changes to the service."""
-
-    def __init__(self, service):
-        super().__init__()
-        self.service = service
-
-    def on_notify(self, new_volume, new_mute, event_context, channels, channel_volumes):
-        self.service.volume_change_requested.emit()
-
-
-class _SharedDeviceCallback(MMNotificationClient):
-    """Forwards device changes to the service."""
-
-    def __init__(self, service):
-        super().__init__()
-        self.service = service
-        self._last_device_id = None
-        self._last_state_changes = {}
-
-    def on_default_device_changed(self, flow, flow_id, role, role_id, default_device_id):
-        if flow_id != EDataFlow.eRender.value or role_id != ERole.eConsole.value:
-            return
-        if default_device_id == self._last_device_id:
-            return
-        self._last_device_id = default_device_id
-        self.service.device_change_requested.emit()
-
-    def on_device_state_changed(self, device_id, new_state, new_state_id):
-        if new_state_id not in (DEVICE_STATE.DISABLED.value, DEVICE_STATE.ACTIVE.value, DEVICE_STATE.UNPLUGGED.value):
-            return
-        if self._last_state_changes.get(device_id) == new_state_id:
-            return
-        self._last_state_changes[device_id] = new_state_id
-        self.service.device_change_requested.emit()

@@ -249,7 +249,7 @@ class VoicemeeterWidget(BaseWidget):
                 current_volume = round(self.volume.GetMasterVolumeLevelScalar() * 100)
                 self.volume_slider.setValue(current_volume)
             except:
-                logging.debug("Failed to update slider to the current volume value!")
+                logging.debug(f"Failed to update slider value to {current_volume}")
 
     def _apply_slider_scroll_step(self, slider: QSlider):
         """Apply scroll_step to slider wheel/keyboard increments."""
