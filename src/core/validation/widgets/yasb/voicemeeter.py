@@ -51,9 +51,7 @@ class VoicemeeterConfig(CustomBaseModel):
     label: str = "{volume[percent]}%"
     label_alt: str = "{volume[percent]}%"
     class_name: str = ""
-    vmcli_exe_path: str = (
-        "c:\\Users\\OmarPc\\repo_My_configs_cmder\\cmder\\bin\\vmcli.exe"
-    )
+    vmrcli_exe_path: str = "c:\\Users\\OmarPc\\repo_My_configs_cmder\\cmder\\bin\\vmrcli.exe"
     main_output_bus: int = Field(default=0, ge=0, le=3)
     synced_outputs_count: int = Field(default=2, ge=1, le=4)
     mute_text: str = "mute"
@@ -81,7 +79,7 @@ class VoicemeeterConfig(CustomBaseModel):
 #     "label": "{volume[percent]}%",
 #     "label_alt": "{volume[percent]}%",
 #     "class_name": "",
-#     "vmcli_exe_path": "c:\\Users\\OmarPc\\repo_My_configs_cmder\\cmder\\bin\\vmcli.exe",
+#     "vmrcli_exe_path": "c:\\Users\\OmarPc\\repo_My_configs_cmder\\cmder\\bin\\vmrcli.exe",
 #     "main_output_bus": 0,
 #     "synced_outputs_count": 2,
 #     "mute_text": "mute",
@@ -128,7 +126,7 @@ class VoicemeeterConfig(CustomBaseModel):
 #         "required": False,
 #         "default": DEFAULTS["class_name"],
 #     },
-#     "vmcli_exe_path": {
+#     "vmrcli_exe_path": {
 #         "type": "string",
 #         "required": True,
 #         "default": DEFAULTS["class_name"],
