@@ -1,0 +1,49 @@
+Voicemeeter Thread-Safety TODO Checklist
+Date: 2026-03-06
+
+Critical
+- [ ] Fix `stopped` call bug in `VoicemeeterInterface.RegisterControlChangeNotify`:
+  - `if self.vm_direct.stopped:` -> `if self.vm_direct.stopped():`
+  - File: `src/core/utils/widgets/voicemeeter/VoicemeeterInterface.py`
+
+- [ ] Remove launcher-thread pattern around `init_thread`:
+  - Do not create `threading.Thread(target=self.vm_direct.init_thread, ...)`
+  - Call `self.vm_direct.init_thread()` directly when needed
+  - File: `src/core/utils/widgets/voicemeeter/VoicemeeterInterface.py`
+
+High
+- [ ] Add a class-level lock guarding shared mutable state in Voicemeeter interface:
+  - `_instances_count`, `_watched_instances`, `_update_threads` (or remove), `_shared_volume_callback` registration paths
+  - File: `src/core/utils/widgets/voicemeeter/VoicemeeterInterface.py`
+
+- [ ] Convert lifecycle to subscriber refcount:
+  - First register -> `event.add(["pdirty"])` + `init_thread()`
+  - Last unregister -> `event.remove(["pdirty"])` + `end_thread()`
+  - File: `src/core/utils/widgets/voicemeeter/VoicemeeterInterface.py`
+
+- [ ] Ensure `stop_vm_api()` does not race with active subscribers:
+  - Only call `logout()` when subscriber count is zero
+  - Keep idempotent shutdown behavior
+  - File: `src/core/utils/widgets/voicemeeter/VoicemeeterInterface.py`
+
+Medium
+- [ ] Keep UI updates strictly on Qt thread via existing signal bridge:
+  - Preserve `_SharedVolumeCallback.on_notify -> service.volume_change_requested.emit()`
+  - Avoid direct widget mutation from Voicemeeter callback thread
+  - Files:
+    - `src/core/utils/widgets/volume/service.py`
+    - `src/core/utils/widgets/voicemeeter/VoicemeeterInterface.py`
+
+- [ ] Remove duplicate `toggle_mute` block in volume widget (cleanup, non-threading but correctness):
+  - File: `src/core/widgets/yasb/volume.py`
+
+Optional (recommended architecture)
+- [ ] Introduce dedicated `VmWorker` (QObject + QThread) as single owner of `vm_direct`
+  - New file: `src/core/utils/widgets/voicemeeter/vm_worker.py`
+  - Service routes all VM reads/writes through queued signals/slots
+
+Validation
+- [ ] Test with 2+ bars/widgets using Voicemeeter simultaneously
+- [ ] Test hot reload / app restart
+- [ ] Test device switches while menu open
+- [ ] Test shutdown: no hangs, no orphan threads
