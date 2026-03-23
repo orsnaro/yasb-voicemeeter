@@ -64,7 +64,7 @@ class VoicemeeterApiLoginController:
 
 class VoicemeeterInterface:
     """_summary_
-    class communicates with (vmcli tool or vm api directly)  that communicates with voicemeeter tool to control in/op sound in OS
+    class communicates with (vmrcli tool or vm api directly)  that communicates with voicemeeter tool to control in/op sound in OS
 
     ### Interface needss to implement the following:
 
@@ -104,7 +104,7 @@ class VoicemeeterInterface:
 
         self.synced_outputs_count = kwargs["synced_outputs_count"]
         self.main_output_bus = kwargs["main_output_bus"]
-        self.vmcli_exe_path = kwargs["vmcli_exe_path"]  # backward compatibility
+        self.vmrcli_exe_path = kwargs["vmrcli_exe_path"]  # backward compatibility
         self.virtual_speakers_obj = kwargs.get("virtual_speakers_obj", None)
 
         self._shared_volume_callback = None
@@ -334,12 +334,12 @@ class VoicemeeterInterface:
         return converted_level
 
     # legacy
-    def _vmcli_cmd(self, command: str, **kwargs):
-        _vmcli_exe_path = self.vmcli_exe_path
+    def _vmrcli_cmd(self, command: str, **kwargs):
+        _vmrcli_exe_path = self.vmrcli_exe_path
         val = None
         try:
-            val = subprocess.run(_vmcli_exe_path + " " + command, capture_output=True, text=True, close_fds=False)
+            val = subprocess.run(_vmrcli_exe_path + " " + command, capture_output=True, text=True, close_fds=False)
         except Exception as e:
-            logging.error(f"{inspect.stack()[0][3]}(): failed to execute vmcli.exe! err details: {e}")
+            logging.error(f"_vmrcli_cmd(): failed to execute vmrcli.exe! err details: {e}")
 
         return val

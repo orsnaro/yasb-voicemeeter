@@ -36,7 +36,7 @@ class VoicemeeterWidget(BaseWidget):
     ):
         self.config = config
         self._vm_service = VoicemeeterService(
-            vmcli_exe_path=self.config.vmcli_exe_path,  # backward compatibility
+            vmrcli_exe_path=self.config.vmrcli_exe_path,  # backward compatibility
             main_output_bus=self.config.main_output_bus,
             synced_outputs_count=self.config.synced_outputs_count,
         )

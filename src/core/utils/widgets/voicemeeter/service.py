@@ -14,7 +14,7 @@ from core.utils.widgets.volume.service import AudioOutputService
 # or using AudioOutputService(QObject) in volume/service.py directly
 class VoicemeeterService(AudioOutputService):
     def __init__(self, **kwargs):
-        self.vmcli_exe_path = kwargs["vmcli_exe_path"]  # backward compatibility
+        self.vmrcli_exe_path = kwargs["vmrcli_exe_path"]  # backward compatibility
         self.main_output_bus = kwargs["main_output_bus"]
         self.synced_outputs_count = kwargs["synced_outputs_count"]
         VoicemeeterApiLoginController.Vm_api_login()
@@ -101,7 +101,7 @@ class VoicemeeterService(AudioOutputService):
         """Try using the voicemeeter interface class as the volume interface"""
         try:
             self._volume_interface = VoicemeeterInterface(
-                vmcli_exe_path=self.vmcli_exe_path,
+                vmrcli_exe_path=self.vmrcli_exe_path,
                 main_output_bus=self.main_output_bus,
                 synced_outputs_count=self.synced_outputs_count,
                 virtual_speakers_obj=voicemeeter_device,
