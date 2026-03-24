@@ -17,9 +17,14 @@ artifacts/
 src/yasb.log
 dist/
 build/
+build_arm64/
+build_x64/
 # Temporary files
 *.tmp
 *.temp
 .is_autoVenv  
 hidden_runner.vbs
 src/main.pyw
+.cache
+# IDE files
+compile_commands.json
