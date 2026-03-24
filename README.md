@@ -42,7 +42,7 @@
 and trigger at log on (run with highest privilages)(dont check the run at log on with any user option)
 - EXTRA: if used with glazeWM edit its config startup commands option to `shell-exec path\to\pythonw.exe path\to\src\main.pyw`
 
-### Installing Yasb v1.9.0 original
+### Installing Yasb original
 
 #### Installer
 - Download the latest installer from the [GitHub releases page](https://github.com/amnweb/yasb/releases/latest).
